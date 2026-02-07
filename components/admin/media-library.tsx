@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { MediaImage } from "@/components/media-image"
-import { Upload, Copy, Check, Trash2 } from "lucide-react"
+import { Upload, Copy, Check, Trash2, Play } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -188,15 +188,22 @@ export function MediaLibrary() {
                 key={file.name}
                 className="rounded-lg border border-[#222] bg-[#0a0a0a] overflow-hidden flex flex-col"
               >
-                <div className="aspect-square w-full bg-[#111] relative">
+                <div className="aspect-square w-full min-h-[120px] bg-[#111] relative overflow-hidden">
                   {file.isVideo ? (
-                    <video
-                      src={file.url}
-                      className="w-full h-full object-cover"
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
+                    <>
+                      <video
+                        src={file.url}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="rounded-full bg-black/60 p-3">
+                          <Play className="h-6 w-6 text-white fill-white" />
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <MediaImage
                       src={file.url}

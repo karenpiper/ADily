@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Pencil, Trash2, Plus } from "lucide-react"
+import { MediaImage } from "@/components/media-image"
 import { cn } from "@/lib/utils"
 
 type DateGroup = { date: string; posts: PostWithRelations[] }
@@ -547,6 +548,27 @@ export function CategoryEditor({
               <div className="space-y-2">
                 {mediaItems.map((m, i) => (
                   <div key={i} className="flex gap-2 items-center p-2 rounded bg-[#111] flex-wrap">
+                    <div className="w-14 h-14 rounded border border-[#333] overflow-hidden bg-[#0a0a0a] shrink-0">
+                      {m.url ? (
+                        m.type === "video" ? (
+                          <video
+                            src={m.url}
+                            className="w-full h-full object-cover"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <MediaImage
+                            src={m.url}
+                            alt={m.caption || "Media"}
+                            className="w-full h-full object-cover"
+                          />
+                        )
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">No URL</div>
+                      )}
+                    </div>
                     <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
                       <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload("media", i)} disabled={uploading} />
                       {uploading ? "…" : "Upload"}
@@ -623,57 +645,72 @@ export function CategoryEditor({
                 <div className="space-y-3">
                   {articles.map((a, i) => (
                     <div key={i} className="p-3 rounded bg-[#111] space-y-2">
-                      <div className="flex justify-between">
-                        <Input
-                          placeholder="Article title"
-                          value={a.title}
-                          onChange={(e) =>
-                            setArticles((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x))
-                            )
-                          }
-                          className="bg-[#0a0a0a] border-[#333]"
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeArticle(i)}>
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </Button>
-                      </div>
-                      <Input
-                        placeholder="URL"
-                        value={a.url}
-                        onChange={(e) =>
-                          setArticles((prev) =>
-                            prev.map((x, j) => (j === i ? { ...x, url: e.target.value } : x))
-                          )
-                        }
-                        className="bg-[#0a0a0a] border-[#333]"
-                      />
-                      <Textarea
-                        placeholder="Summary"
-                        value={a.summary}
-                        onChange={(e) =>
-                          setArticles((prev) =>
-                            prev.map((x, j) => (j === i ? { ...x, summary: e.target.value } : x))
-                          )
-                        }
-                        rows={2}
-                        className="bg-[#0a0a0a] border-[#333]"
-                      />
-                      <div className="flex gap-2">
-                        <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
-                          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload("article", i)} disabled={uploading} />
-                          {uploading ? "…" : "Upload image"}
-                        </label>
-                        <Input
-                          placeholder="Image URL"
-                          value={a.image_url}
-                          onChange={(e) =>
-                            setArticles((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, image_url: e.target.value } : x))
-                            )
-                          }
-                          className="flex-1 bg-[#0a0a0a] border-[#333]"
-                        />
+                      <div className="flex gap-3">
+                        <div className="w-14 h-14 rounded border border-[#333] overflow-hidden bg-[#0a0a0a] shrink-0">
+                          {a.image_url ? (
+                            <MediaImage
+                              src={a.image_url}
+                              alt={a.title || "Article"}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">No image</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex justify-between gap-2">
+                            <Input
+                              placeholder="Article title"
+                              value={a.title}
+                              onChange={(e) =>
+                                setArticles((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, title: e.target.value } : x))
+                                )
+                              }
+                              className="bg-[#0a0a0a] border-[#333] flex-1"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeArticle(i)} className="shrink-0">
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                            </Button>
+                          </div>
+                          <Input
+                            placeholder="URL"
+                            value={a.url}
+                            onChange={(e) =>
+                              setArticles((prev) =>
+                                prev.map((x, j) => (j === i ? { ...x, url: e.target.value } : x))
+                              )
+                            }
+                            className="bg-[#0a0a0a] border-[#333]"
+                          />
+                          <Textarea
+                            placeholder="Summary"
+                            value={a.summary}
+                            onChange={(e) =>
+                              setArticles((prev) =>
+                                prev.map((x, j) => (j === i ? { ...x, summary: e.target.value } : x))
+                              )
+                            }
+                            rows={2}
+                            className="bg-[#0a0a0a] border-[#333]"
+                          />
+                          <div className="flex gap-2 items-center">
+                            <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
+                              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload("article", i)} disabled={uploading} />
+                              {uploading ? "…" : "Upload image"}
+                            </label>
+                            <Input
+                              placeholder="Image URL"
+                              value={a.image_url}
+                              onChange={(e) =>
+                                setArticles((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, image_url: e.target.value } : x))
+                                )
+                              }
+                              className="flex-1 bg-[#0a0a0a] border-[#333]"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
