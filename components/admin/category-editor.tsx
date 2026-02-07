@@ -370,10 +370,10 @@ export function CategoryEditor({
       if (mediaItems.length) {
         await supabase.from("media_items").insert(
           mediaItems
-            .filter((m) => m.url.trim())
+            .filter((m) => m.url.trim() || m.external_link.trim())
             .map((m, idx) => ({
               post_id: editPost.id,
-              url: m.url.trim(),
+              url: m.url.trim() || "/images/placeholder.svg",
               caption: m.caption.trim() || null,
               type: m.type,
               size: m.size,
@@ -611,11 +611,14 @@ export function CategoryEditor({
                 </Button>
               </div>
               <div className="space-y-2">
-                {mediaItems.map((m, i) => (
+                {mediaItems.map((m, i) => {
+                  const linkOnly = categorySlug === "design" || categorySlug === "video"
+                  const memesOnly = categorySlug === "memes"
+                  return (
                   <div key={i} className="flex gap-2 items-center p-2 rounded bg-[#111] flex-wrap">
                     <div className="w-14 h-14 rounded border border-[#333] overflow-hidden bg-[#0a0a0a] shrink-0">
                       {m.url ? (
-                        m.type === "video" ? (
+                        !memesOnly && m.type === "video" ? (
                           <video
                             src={m.url}
                             className="w-full h-full object-cover"
@@ -631,106 +634,72 @@ export function CategoryEditor({
                           />
                         )
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">No URL</div>
+                        <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">{linkOnly ? "Link" : memesOnly ? "Image" : "No URL"}</div>
                       )}
                     </div>
-                    <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
-                      <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload("media", i)} disabled={uploading} />
-                      {uploading ? "…" : "Upload"}
-                    </label>
-                    <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-                      <Input
-                        placeholder="Paste link (YouTube, social, website)"
-                        value={m.external_link}
-                        onChange={(e) =>
-                          setMediaItems((prev) =>
-                            prev.map((x, j) => (j === i ? { ...x, external_link: e.target.value } : x))
-                          )
-                        }
-                        className="bg-[#0a0a0a] border-[#333] text-sm"
-                      />
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border-[#333] text-xs h-7"
-                          onClick={() => handleUnfurlMedia(i, m.external_link)}
-                          disabled={unfurlLoading.media === i}
-                        >
-                          {unfurlLoading.media === i ? "Fetching…" : "Fetch thumbnail"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border-[#333] text-xs h-7"
-                          onClick={() => handleUnfurlMedia(i, m.external_link, true)}
-                          disabled={unfurlLoading.media === i}
-                          title="Website screengrab (requires SCREENSHOT_SERVICE_URL)"
-                        >
-                          Screenshot
-                        </Button>
+                    {memesOnly && (
+                      <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload("media", i)} disabled={uploading} />
+                        {uploading ? "…" : "Upload"}
+                      </label>
+                    )}
+                    {linkOnly && (
+                      <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                        <Input
+                          placeholder="Paste link"
+                          value={m.external_link}
+                          onChange={(e) =>
+                            setMediaItems((prev) =>
+                              prev.map((x, j) => (j === i ? { ...x, external_link: e.target.value } : x))
+                            )
+                          }
+                          onBlur={() => {
+                            if (m.external_link?.trim()) handleUnfurlMedia(i, m.external_link)
+                          }}
+                          className="bg-[#0a0a0a] border-[#333] text-sm"
+                        />
+                        {unfurlLoading.media === i && (
+                          <span className="text-xs text-gray-500">Fetching preview…</span>
+                        )}
                       </div>
-                    </div>
-                    <Input
-                      placeholder="Image/thumbnail URL"
-                      value={m.url}
-                      onChange={(e) =>
-                        setMediaItems((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, url: e.target.value } : x))
-                        )
-                      }
-                      className="flex-1 min-w-[120px] bg-[#0a0a0a] border-[#333]"
-                    />
-                    <Input
-                      placeholder="Caption"
-                      value={m.caption}
-                      onChange={(e) =>
-                        setMediaItems((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, caption: e.target.value } : x))
-                        )
-                      }
-                      className="w-32 bg-[#0a0a0a] border-[#333]"
-                    />
-                    <Select
-                      value={m.type}
-                      onValueChange={(v: "image" | "video") =>
-                        setMediaItems((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, type: v } : x))
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-24 bg-[#0a0a0a] border-[#333]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="image">Image</SelectItem>
-                        <SelectItem value="video">Video</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={m.size}
-                      onValueChange={(v: "small" | "medium" | "large") =>
-                        setMediaItems((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, size: v } : x))
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-24 bg-[#0a0a0a] border-[#333]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="small">Small</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="large">Large</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    )}
+                    {linkOnly && (
+                      <>
+                        <Input
+                          placeholder="Caption"
+                          value={m.caption}
+                          onChange={(e) =>
+                            setMediaItems((prev) =>
+                              prev.map((x, j) => (j === i ? { ...x, caption: e.target.value } : x))
+                            )
+                          }
+                          className="w-40 bg-[#0a0a0a] border-[#333]"
+                        />
+                        <Select
+                          value={m.size}
+                          onValueChange={(v: "small" | "medium" | "large") =>
+                            setMediaItems((prev) =>
+                              prev.map((x, j) => (j === i ? { ...x, size: v } : x))
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-24 bg-[#0a0a0a] border-[#333]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="small">Small</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="large">Large</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeMediaItem(i)}>
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>
                   </div>
-                ))}
+                );
+                })}
               </div>
             </div>
 

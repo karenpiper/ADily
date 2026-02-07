@@ -18,7 +18,7 @@ export interface GridImage {
 
 export function ImageGrid({ images }: { images: GridImage[] }) {
   return (
-    <div className="grid grid-cols-3 gap-1">
+    <div className="w-full min-w-0 grid grid-cols-3 gap-1">
       {images.map((img, i) => (
         <GridItem key={img.id} image={img} index={i} />
       ))}
@@ -82,10 +82,10 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden rounded-lg group flex items-center justify-center bg-dose-gray-dark/50"
+      className="relative overflow-hidden rounded-lg group flex items-center justify-center bg-dose-gray-dark/50 min-w-0"
       style={{
-        gridColumn: `span ${image.colSpan || 1}`,
-        gridRow: `span ${image.rowSpan || 1}`,
+        gridColumn: `span ${image.colSpan ?? 1}`,
+        gridRow: `span ${image.rowSpan ?? 1}`,
         aspectRatio: image.aspectRatio || "4/3",
         animationDelay: `${index * 100}ms`,
       }}
