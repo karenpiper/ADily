@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Pencil, Trash2, Star } from "lucide-react"
+import { MediaImage } from "@/components/media-image"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_HERO_DESCRIPTION =
@@ -399,11 +400,11 @@ export default function AdminEditionsPage() {
                 </label>
               </div>
               {form.featured_meme_url && (
-                <div className="mt-2">
-                  <img
+                <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
+                  <MediaImage
                     src={form.featured_meme_url}
-                    alt="Preview"
-                    className="h-24 w-auto rounded border border-[#333] object-cover"
+                    alt="Featured meme preview"
+                    className="h-full w-full object-cover"
                   />
                 </div>
               )}
