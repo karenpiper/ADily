@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user?.email || !isAllowedAdmin(user.email)) {
+  if (!user?.email || !(await isAllowedAdmin(user.email))) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }

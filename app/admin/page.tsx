@@ -15,7 +15,12 @@ const adminLinks = [
   { label: "Media Library", href: "/admin/media" },
 ]
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const { error } = await searchParams
   const supabase = await createClient()
   const {
     data: { user },
@@ -51,6 +56,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="max-w-4xl">
+      {error === "admin_required" && (
+        <div className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-amber-200">
+          You need admin access to view that page.
+        </div>
+      )}
       <div className="flex items-center gap-4 mb-10">
         {avatarUrl ? (
           <img

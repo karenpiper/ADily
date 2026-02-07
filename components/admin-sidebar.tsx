@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
-const navItems = [
+const baseNavItems = [
   { label: "Editions", href: "/admin/editions", icon: "📋" },
   { label: "Memes", href: "/admin/memes", icon: "😂" },
   { label: "Design", href: "/admin/design", icon: "🎨" },
@@ -16,9 +16,16 @@ const navItems = [
 
 interface AdminSidebarProps {
   user: User | null
+  userRole: string | null
 }
 
-export function AdminSidebar({ user }: AdminSidebarProps) {
+export function AdminSidebar({ user, userRole }: AdminSidebarProps) {
+  const navItems = [
+    ...baseNavItems,
+    ...(userRole === "admin"
+      ? [{ label: "Users", href: "/admin/users", icon: "👥" as const }]
+      : []),
+  ]
   const pathname = usePathname()
   const router = useRouter()
 

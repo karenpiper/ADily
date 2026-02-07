@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
-      if (isAllowedAdmin(data.user.email)) {
+      if (await isAllowedAdmin(data.user.email)) {
         return NextResponse.redirect(`${origin}${next}`)
       } else {
         await supabase.auth.signOut()

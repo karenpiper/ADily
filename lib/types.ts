@@ -1,5 +1,16 @@
 // Database table types (match Supabase schema)
 
+export type UserRole = "admin" | "editor" | "viewer"
+
+export interface AllowedUser {
+  id: string
+  email: string
+  name: string | null
+  role: UserRole
+  added_by: string | null
+  created_at: string
+}
+
 export interface Edition {
   id: string
   date: string

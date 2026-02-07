@@ -1,6 +1,7 @@
 import React from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter, Playfair_Display, Caveat } from "next/font/google"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const _inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${_inter.variable} ${_playfair.variable} ${_caveat.variable} font-sans antialiased noise-bg`}
       >
         {children}
+        <Toaster />
       </body>
     </html>
   )

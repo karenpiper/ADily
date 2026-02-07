@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
   // Admin login page
   if (pathname === "/admin/login") {
     if (user) {
-      if (isAllowedAdmin(user.email)) {
+      if (await isAllowedAdmin(user.email)) {
         return NextResponse.redirect(new URL("/admin", request.url))
       }
       await supabase.auth.signOut()
@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL("/admin/login", request.url))
     }
-    if (!isAllowedAdmin(user.email)) {
+    if (!(await isAllowedAdmin(user.email))) {
       await supabase.auth.signOut()
       return NextResponse.redirect(
         new URL("/admin/login?error=unauthorized", request.url)

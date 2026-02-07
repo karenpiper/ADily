@@ -6,10 +6,11 @@ import type { User } from "@supabase/supabase-js"
 
 interface AdminShellProps {
   user: User | null
+  userRole?: string | null
   children: React.ReactNode
 }
 
-export function AdminShell({ user, children }: AdminShellProps) {
+export function AdminShell({ user, userRole, children }: AdminShellProps) {
   const pathname = usePathname()
   const isLoginPage = pathname === "/admin/login"
 
@@ -19,7 +20,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
 
   return (
     <>
-      <AdminSidebar user={user} />
+      <AdminSidebar user={user} userRole={userRole ?? null} />
       <main className="ml-64 p-8">{children}</main>
     </>
   )
