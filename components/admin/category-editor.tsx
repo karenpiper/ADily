@@ -76,11 +76,12 @@ export function CategoryEditor({
   const [headline, setHeadline] = useState("")
   const [insights, setInsights] = useState<{ label: string; description: string; sort_order: number }[]>([])
   const [mediaItems, setMediaItems] = useState<
-    { url: string; caption: string; type: "image" | "video"; size: "small" | "medium" | "large"; sort_order: number }[]
+    { url: string; caption: string; type: "image" | "video"; size: "small" | "medium" | "large"; external_link: string; sort_order: number }[]
   >([])
   const [articles, setArticles] = useState<
-    { title: string; url: string; summary: string; image_url: string; sort_order: number }[]
+    { title: string; url: string; summary: string; image_url: string; author: string; source: string; sort_order: number }[]
   >([])
+  const [unfurlLoading, setUnfurlLoading] = useState<{ media: number | null; article: number | null }>({ media: null, article: null })
 
   const supabase = createClient()
 
@@ -200,6 +201,7 @@ export function CategoryEditor({
           caption: m.caption ?? "",
           type: m.type,
           size: m.size,
+          external_link: m.external_link ?? "",
           sort_order: m.sort_order,
         }))
     )
@@ -211,6 +213,8 @@ export function CategoryEditor({
           url: a.url,
           summary: a.summary,
           image_url: a.image_url ?? "",
+          author: a.author ?? "",
+          source: a.source ?? "",
           sort_order: a.sort_order,
         }))
     )
@@ -232,7 +236,7 @@ export function CategoryEditor({
   const addMediaItem = () => {
     setMediaItems((prev) => [
       ...prev,
-      { url: "", caption: "", type: "image", size: "medium", sort_order: prev.length },
+      { url: "", caption: "", type: "image", size: "medium", external_link: "", sort_order: prev.length },
     ])
   }
   const removeMediaItem = (i: number) => {
@@ -241,11 +245,69 @@ export function CategoryEditor({
   const addArticle = () => {
     setArticles((prev) => [
       ...prev,
-      { title: "", url: "", summary: "", image_url: "", sort_order: prev.length },
+      { title: "", url: "", summary: "", image_url: "", author: "", source: "", sort_order: prev.length },
     ])
   }
   const removeArticle = (i: number) => {
     setArticles((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  const handleUnfurlMedia = async (index: number, linkUrl: string, screenshot = false) => {
+    if (!linkUrl.trim()) return
+    setUnfurlLoading((prev) => ({ ...prev, media: index }))
+    try {
+      const res = await fetch("/api/unfurl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: linkUrl.trim(), screenshot }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.imageUrl) {
+        setMediaItems((prev) =>
+          prev.map((m, j) =>
+            j === index
+              ? { ...m, url: data.imageUrl, external_link: linkUrl.trim() }
+              : m
+          )
+        )
+      }
+      if (data.error && !data.imageUrl) alert(data.error)
+    } finally {
+      setUnfurlLoading((prev) => ({ ...prev, media: null }))
+    }
+  }
+
+  const handleUnfurlArticle = async (index: number) => {
+    const url = articles[index]?.url?.trim()
+    if (!url) {
+      alert("Enter the article URL first, then click Fetch.")
+      return
+    }
+    setUnfurlLoading((prev) => ({ ...prev, article: index }))
+    try {
+      const res = await fetch("/api/unfurl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setArticles((prev) =>
+        prev.map((a, j) =>
+          j === index
+            ? {
+                ...a,
+                title: data.title ?? a.title,
+                image_url: data.imageUrl ?? a.image_url,
+                author: data.author ?? a.author,
+                source: data.source ?? a.source,
+              }
+            : a
+        )
+      )
+      if (data.error) alert(data.error)
+    } finally {
+      setUnfurlLoading((prev) => ({ ...prev, article: null }))
+    }
   }
 
   const handleFileUpload = (field: "media" | "article", index: number) => {
@@ -315,6 +377,7 @@ export function CategoryEditor({
               caption: m.caption.trim() || null,
               type: m.type,
               size: m.size,
+              external_link: m.external_link.trim() || null,
               sort_order: idx,
             }))
         )
@@ -331,6 +394,8 @@ export function CategoryEditor({
               url: a.url.trim() || "#",
               summary: a.summary.trim() || "",
               image_url: a.image_url.trim() || null,
+              author: a.author.trim() || null,
+              source: a.source.trim() || null,
               sort_order: idx,
             }))
         )
@@ -573,8 +638,43 @@ export function CategoryEditor({
                       <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload("media", i)} disabled={uploading} />
                       {uploading ? "…" : "Upload"}
                     </label>
+                    <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+                      <Input
+                        placeholder="Paste link (YouTube, social, website)"
+                        value={m.external_link}
+                        onChange={(e) =>
+                          setMediaItems((prev) =>
+                            prev.map((x, j) => (j === i ? { ...x, external_link: e.target.value } : x))
+                          )
+                        }
+                        className="bg-[#0a0a0a] border-[#333] text-sm"
+                      />
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-[#333] text-xs h-7"
+                          onClick={() => handleUnfurlMedia(i, m.external_link)}
+                          disabled={unfurlLoading.media === i}
+                        >
+                          {unfurlLoading.media === i ? "Fetching…" : "Fetch thumbnail"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-[#333] text-xs h-7"
+                          onClick={() => handleUnfurlMedia(i, m.external_link, true)}
+                          disabled={unfurlLoading.media === i}
+                          title="Website screengrab (requires SCREENSHOT_SERVICE_URL)"
+                        >
+                          Screenshot
+                        </Button>
+                      </div>
+                    </div>
                     <Input
-                      placeholder="URL"
+                      placeholder="Image/thumbnail URL"
                       value={m.url}
                       onChange={(e) =>
                         setMediaItems((prev) =>
@@ -674,7 +774,7 @@ export function CategoryEditor({
                             </Button>
                           </div>
                           <Input
-                            placeholder="URL"
+                            placeholder="Article URL"
                             value={a.url}
                             onChange={(e) =>
                               setArticles((prev) =>
@@ -683,8 +783,40 @@ export function CategoryEditor({
                             }
                             className="bg-[#0a0a0a] border-[#333]"
                           />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-[#333] w-fit"
+                            onClick={() => handleUnfurlArticle(i)}
+                            disabled={unfurlLoading.article === i}
+                          >
+                            {unfurlLoading.article === i ? "Fetching…" : "Fetch from link (author, source, image)"}
+                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              placeholder="Author"
+                              value={a.author}
+                              onChange={(e) =>
+                                setArticles((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, author: e.target.value } : x))
+                                )
+                              }
+                              className="bg-[#0a0a0a] border-[#333]"
+                            />
+                            <Input
+                              placeholder="Source"
+                              value={a.source}
+                              onChange={(e) =>
+                                setArticles((prev) =>
+                                  prev.map((x, j) => (j === i ? { ...x, source: e.target.value } : x))
+                                )
+                              }
+                              className="bg-[#0a0a0a] border-[#333]"
+                            />
+                          </div>
                           <Textarea
-                            placeholder="Summary"
+                            placeholder="Summary (your note)"
                             value={a.summary}
                             onChange={(e) =>
                               setArticles((prev) =>

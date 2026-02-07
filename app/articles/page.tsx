@@ -97,6 +97,8 @@ export default async function ArticlesPage() {
                     title={article.title}
                     summary={article.summary}
                     url={article.url}
+                    author={article.author}
+                    source={article.source}
                     images={articleToCardImage(article)}
                   />
                 ))}

@@ -67,6 +67,8 @@ export interface Article {
   url: string
   summary: string
   image_url: string | null
+  author: string | null
+  source: string | null
   sort_order: number
 }
 

@@ -15,10 +15,12 @@ interface ArticleCardProps {
   title: string
   summary: string
   url?: string
+  author?: string | null
+  source?: string | null
   images: ArticleImage[]
 }
 
-export function ArticleCard({ title, summary, url, images }: ArticleCardProps) {
+export function ArticleCard({ title, summary, url, author, source, images }: ArticleCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
 
@@ -51,10 +53,15 @@ export function ArticleCard({ title, summary, url, images }: ArticleCardProps) {
           href={url ?? "#"}
           target={url ? "_blank" : undefined}
           rel={url ? "noopener noreferrer" : undefined}
-          className="text-lg font-serif text-foreground underline underline-offset-4 hover:text-dose-orange transition-colors duration-150 leading-snug block mb-4"
+          className="text-lg font-serif text-foreground underline underline-offset-4 hover:text-dose-orange transition-colors duration-150 leading-snug block mb-2"
         >
           {title}
         </a>
+        {(author || source) && (
+          <p className="text-xs text-dose-gray-mid mb-2">
+            {[author, source].filter(Boolean).join(" · ")}
+          </p>
+        )}
         <p className="text-sm leading-relaxed text-dose-gray-mid">
           {summary}
         </p>

@@ -13,6 +13,7 @@ interface GridImage {
   isVideo?: boolean
   url?: string
   thumbnailUrl?: string
+  externalLink?: string
 }
 
 interface DateGroupProps {

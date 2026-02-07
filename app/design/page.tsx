@@ -13,14 +13,16 @@ function formatCategoryDate(dateStr: string): string {
 
 function mediaToGridImage(m: MediaItem) {
   const colSpan = m.size === "large" ? 3 : m.size === "medium" ? 2 : 1
+  const aspectRatio = m.size === "large" ? "16/9" : m.size === "medium" ? "4/3" : "1"
   return {
     id: m.id,
     url: m.url,
     thumbnailUrl: m.thumbnail_url ?? undefined,
     isVideo: m.type === "video",
+    externalLink: m.external_link ?? undefined,
     colSpan,
     rowSpan: 1,
-    aspectRatio: "4/3" as const,
+    aspectRatio,
   }
 }
 

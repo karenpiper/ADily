@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { MediaImage } from "@/components/media-image"
+import { getSocialEmbedUrl } from "@/lib/embed-urls"
 
 export interface GridImage {
   id: string
@@ -11,6 +12,8 @@ export interface GridImage {
   isVideo?: boolean
   url?: string
   thumbnailUrl?: string
+  /** When set to a TikTok or Instagram URL, the post embed is shown instead of the thumbnail */
+  externalLink?: string
 }
 
 export function ImageGrid({ images }: { images: GridImage[] }) {
@@ -26,6 +29,7 @@ export function ImageGrid({ images }: { images: GridImage[] }) {
 function GridItem({ image, index }: { image: GridImage; index: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
+  const embedUrl = image.externalLink ? getSocialEmbedUrl(image.externalLink) : null
 
   useEffect(() => {
     const el = ref.current
@@ -43,12 +47,20 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     return () => observer.disconnect()
   }, [])
 
-  const mediaContent = image.url ? (
+  const mediaContent = embedUrl ? (
+    <iframe
+      src={visible ? embedUrl : undefined}
+      title="Social embed"
+      className="w-full h-full min-h-[300px] rounded-lg border-0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowFullScreen
+    />
+  ) : image.url ? (
     image.isVideo ? (
       <video
         src={image.url}
         poster={image.thumbnailUrl ?? undefined}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain object-center"
         muted
         playsInline
         loop
@@ -58,7 +70,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       <MediaImage
         src={image.url}
         alt={image.thumbnailUrl ?? "Media"}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain object-center"
       />
     )
   ) : (
@@ -70,7 +82,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden rounded-lg group"
+      className="relative overflow-hidden rounded-lg group flex items-center justify-center bg-dose-gray-dark/50"
       style={{
         gridColumn: `span ${image.colSpan || 1}`,
         gridRow: `span ${image.rowSpan || 1}`,
@@ -79,14 +91,14 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       }}
     >
       <div
-        className={`w-full h-full bg-dose-gray-dark/60 transition-transform duration-200 group-hover:scale-[1.02] ${
+        className={`w-full h-full flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02] ${
           visible ? "grid-item-animate" : "opacity-0"
         }`}
         style={{ animationDelay: `${index * 100}ms` }}
       >
         {mediaContent}
       </div>
-      {image.isVideo && (
+      {image.isVideo && !embedUrl && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-foreground/80">
             <span className="text-dose-black text-xl ml-1">
