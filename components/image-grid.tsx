@@ -47,11 +47,12 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     return () => observer.disconnect()
   }, [])
 
+  const aspectRatio = image.aspectRatio || "4/3"
   const mediaContent = embedUrl ? (
     <iframe
       src={visible ? embedUrl : undefined}
       title="Social embed"
-      className="w-full h-full min-h-[300px] rounded-lg border-0"
+      className="w-full h-full min-h-[300px] border-0 block"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowFullScreen
     />
@@ -60,7 +61,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       <video
         src={image.url}
         poster={image.thumbnailUrl ?? undefined}
-        className="w-full h-full object-contain object-center"
+        className="w-full h-full object-cover object-center block"
         muted
         playsInline
         loop
@@ -70,30 +71,26 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       <MediaImage
         src={image.url}
         alt={image.thumbnailUrl ?? "Media"}
-        className="w-full h-full object-contain object-center"
+        className="w-full h-full object-cover object-center block"
       />
     )
   ) : (
-    <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60 flex items-center justify-center text-zinc-500 text-sm">
+    <div className="w-full flex items-center justify-center text-zinc-500 text-sm bg-dose-gray-dark/30" style={{ aspectRatio }}>
       <span>Image pending upload</span>
     </div>
   )
 
-  const aspectRatio = image.aspectRatio || "4/3"
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden rounded-lg group flex items-center justify-center bg-dose-gray-dark/50 w-full"
+      className="relative w-full"
       style={{
         aspectRatio,
         animationDelay: `${index * 100}ms`,
-        overflow: "hidden",
       }}
     >
       <div
-        className={`w-full h-full flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02] ${
-          visible ? "grid-item-animate" : "opacity-0"
-        }`}
+        className={`w-full h-full ${visible ? "grid-item-animate" : "opacity-0"}`}
         style={{ animationDelay: `${index * 100}ms` }}
       >
         {mediaContent}
@@ -101,9 +98,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       {image.isVideo && !embedUrl && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-foreground/80">
-            <span className="text-dose-black text-xl ml-1">
-              {"▶"}
-            </span>
+            <span className="text-dose-black text-xl ml-1">▶</span>
           </div>
         </div>
       )}

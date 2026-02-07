@@ -89,8 +89,8 @@ export default async function ArticlesPage() {
                 </div>
               </div>
 
-              {/* Article Cards */}
-              <div className="flex flex-col gap-16">
+              {/* Article Cards - grid */}
+              <div className="articles-grid">
                 {section.articles.map((article) => (
                   <ArticleCard
                     key={article.id}

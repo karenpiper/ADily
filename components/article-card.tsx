@@ -43,58 +43,50 @@ export function ArticleCard({ title, summary, url, author, source, images }: Art
   return (
     <div
       ref={ref}
-      className={`flex flex-col md:flex-row gap-8 transition-all duration-500 ${
+      className={`flex flex-col gap-3 transition-all duration-500 ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
-      {/* Text side */}
-      <div className="md:w-[35%]">
+      {/* Image on top for grid layout */}
+      <div className="w-full">
+        {images[0] && (
+          <div
+            className="relative w-full overflow-hidden"
+            style={{ aspectRatio: images[0].aspectRatio || "16/9" }}
+          >
+            {images[0].url ? (
+              <MediaImage
+                src={images[0].url}
+                alt=""
+                className="w-full h-full object-cover block"
+              />
+            ) : (
+              <div className="w-full h-full bg-dose-gray-dark/40 flex items-center justify-center text-zinc-500 text-sm">
+                <span>Image pending</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Text below */}
+      <div>
         <a
           href={url ?? "#"}
           target={url ? "_blank" : undefined}
           rel={url ? "noopener noreferrer" : undefined}
-          className="text-lg font-serif text-foreground underline underline-offset-4 hover:text-dose-orange transition-colors duration-150 leading-snug block mb-2"
+          className="text-base font-serif text-foreground underline underline-offset-4 hover:text-dose-orange transition-colors duration-150 leading-snug block mb-1"
         >
           {title}
         </a>
         {(author || source) && (
-          <p className="text-xs text-dose-gray-mid mb-2">
+          <p className="text-xs text-dose-gray-mid mb-1">
             {[author, source].filter(Boolean).join(" · ")}
           </p>
         )}
-        <p className="text-sm leading-relaxed text-dose-gray-mid">
+        <p className="text-sm leading-relaxed text-dose-gray-mid line-clamp-3">
           {summary}
         </p>
-      </div>
-
-      {/* Image collage side */}
-      <div className="md:w-[65%]">
-        <div className="grid grid-cols-2 gap-1">
-          {images.map((img) => (
-            <div
-              key={img.id}
-              className="relative overflow-hidden rounded-lg group"
-              style={{
-                gridColumn: `span ${img.colSpan || 1}`,
-                aspectRatio: img.aspectRatio || "16/9",
-              }}
-            >
-              <div className="w-full h-full bg-dose-gray-dark/60 transition-transform duration-200 group-hover:scale-[1.02]">
-                {img.url ? (
-                  <MediaImage
-                    src={img.url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60 flex items-center justify-center text-zinc-500 text-sm">
-                    <span>Image pending upload</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )
