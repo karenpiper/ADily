@@ -392,6 +392,8 @@ export function CategoryEditor({
       if (delArticlesError) throw delArticlesError
 
       if (showArticles && articles.length) {
+        // Use only columns from 001 schema so insert works before 004_articles_author_source.sql is run.
+        // After running that migration, add author and source to the object below to persist them.
         const toInsert = articles
           .filter((a) => a.title.trim())
           .map((a, idx) => ({
@@ -400,8 +402,6 @@ export function CategoryEditor({
             url: a.url.trim() || "#",
             summary: a.summary.trim() || "",
             image_url: (a.image_url && a.image_url.trim()) || null,
-            author: (a.author && a.author.trim()) || null,
-            source: (a.source && a.source.trim()) || null,
             sort_order: idx,
           }))
         if (toInsert.length) {

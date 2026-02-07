@@ -29,10 +29,10 @@ export function DateGroup({ date, headline, insights, images }: DateGroupProps) 
       {/* Date label */}
       <p className="text-[16px] font-sans text-dose-orange mb-4">{date}</p>
 
-      {/* Two columns */}
-      <div className="flex flex-col lg:flex-row gap-10">
+      {/* Two columns: CSS Grid so right column has definite width for image grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[42fr_58fr] gap-10">
         {/* Left - Insights */}
-        <div className="lg:w-[42%]">
+        <div>
           <h2 className="text-[26px] font-serif leading-snug text-foreground mb-2 text-balance">
             {headline}
           </h2>
@@ -54,8 +54,8 @@ export function DateGroup({ date, headline, insights, images }: DateGroupProps) 
           </div>
         </div>
 
-        {/* Right - Image grid: ensure column has width so grid can layout */}
-        <div className="lg:w-[58%] min-w-0 flex-1 w-full" style={{ minWidth: 0 }}>
+        {/* Right - Image grid */}
+        <div className="min-w-0 w-full">
           <ImageGrid images={images} />
         </div>
       </div>

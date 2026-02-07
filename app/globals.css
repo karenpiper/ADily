@@ -106,10 +106,15 @@
 /* Image grid: force 3-column layout so items don't stack */
 .image-grid-root {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 4px;
-  width: 100%;
+  width: 100% !important;
   min-width: 0;
+  box-sizing: border-box;
+}
+.image-grid-root > * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Staggered grid item animation */
