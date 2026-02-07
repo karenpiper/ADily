@@ -354,58 +354,68 @@ export function CategoryEditor({
         .update({ headline: headline.trim() })
         .eq("id", editPost.id)
 
-      await supabase.from("post_insights").delete().eq("post_id", editPost.id)
+      let err = await supabase.from("post_insights").delete().eq("post_id", editPost.id).then((r) => r.error)
+      if (err) throw err
       if (insights.length) {
-        await supabase.from("post_insights").insert(
+        err = await supabase.from("post_insights").insert(
           insights.map((i, idx) => ({
             post_id: editPost.id,
             label: i.label.trim() || "Insight",
             description: i.description.trim() || "",
             sort_order: idx,
           }))
-        )
+        ).then((r) => r.error)
+        if (err) throw err
       }
 
-      await supabase.from("media_items").delete().eq("post_id", editPost.id)
+      err = await supabase.from("media_items").delete().eq("post_id", editPost.id).then((r) => r.error)
+      if (err) throw err
       if (mediaItems.length) {
-        await supabase.from("media_items").insert(
-          mediaItems
-            .filter((m) => m.url.trim() || m.external_link.trim())
-            .map((m, idx) => ({
-              post_id: editPost.id,
-              url: m.url.trim() || "/images/placeholder.svg",
-              caption: m.caption.trim() || null,
-              type: m.type,
-              size: m.size,
-              external_link: m.external_link.trim() || null,
-              sort_order: idx,
-            }))
-        )
+        const mediaToInsert = mediaItems
+          .filter((m) => m.url.trim() || m.external_link.trim())
+          .map((m, idx) => ({
+            post_id: editPost.id,
+            url: m.url.trim() || "/images/placeholder.svg",
+            caption: m.caption.trim() || null,
+            type: m.type,
+            size: m.size,
+            external_link: m.external_link.trim() || null,
+            sort_order: idx,
+          }))
+        if (mediaToInsert.length) {
+          err = await supabase.from("media_items").insert(mediaToInsert).then((r) => r.error)
+          if (err) throw err
+        }
       }
 
-      await supabase.from("articles").delete().eq("post_id", editPost.id)
+      const { error: delArticlesError } = await supabase.from("articles").delete().eq("post_id", editPost.id)
+      if (delArticlesError) throw delArticlesError
+
       if (showArticles && articles.length) {
-        await supabase.from("articles").insert(
-          articles
-            .filter((a) => a.title.trim())
-            .map((a, idx) => ({
-              post_id: editPost.id,
-              title: a.title.trim(),
-              url: a.url.trim() || "#",
-              summary: a.summary.trim() || "",
-              image_url: a.image_url.trim() || null,
-              author: a.author.trim() || null,
-              source: a.source.trim() || null,
-              sort_order: idx,
-            }))
-        )
+        const toInsert = articles
+          .filter((a) => a.title.trim())
+          .map((a, idx) => ({
+            post_id: editPost.id,
+            title: a.title.trim(),
+            url: a.url.trim() || "#",
+            summary: a.summary.trim() || "",
+            image_url: (a.image_url && a.image_url.trim()) || null,
+            author: (a.author && a.author.trim()) || null,
+            source: (a.source && a.source.trim()) || null,
+            sort_order: idx,
+          }))
+        if (toInsert.length) {
+          const { error: insArticlesError } = await supabase.from("articles").insert(toInsert)
+          if (insArticlesError) throw insArticlesError
+        }
       }
 
       closeEdit()
       await fetchPosts(category.id)
     } catch (e) {
       console.error(e)
-      alert("Failed to save post")
+      const msg = e instanceof Error ? e.message : "Failed to save post"
+      alert(msg)
     } finally {
       setSaving(false)
     }
