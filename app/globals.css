@@ -126,26 +126,21 @@
   box-sizing: border-box;
 }
 
-/* Articles grid: same Pinterest-style columns, 10px gap */
+/* Articles grid: 2 per row (thumb | copy per article), 10px gap */
 .articles-grid {
-  column-count: 3;
-  column-gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
   width: 100%;
   box-sizing: border-box;
 }
 @media (max-width: 768px) {
   .articles-grid {
-    column-count: 2;
-  }
-}
-@media (max-width: 480px) {
-  .articles-grid {
-    column-count: 1;
+    grid-template-columns: 1fr;
   }
 }
 .articles-grid > * {
-  break-inside: avoid;
-  margin-bottom: 10px;
+  min-width: 0;
   box-sizing: border-box;
 }
 

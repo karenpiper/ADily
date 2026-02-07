@@ -43,31 +43,34 @@ export function ArticleCard({ title, summary, url, author, source, images }: Art
   return (
     <div
       ref={ref}
-      className={`flex flex-col gap-3 transition-all duration-500 ${
+      className={`flex flex-row gap-3 min-w-0 transition-all duration-500 ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
-      {/* Image on top: natural aspect ratio, scaled to fit, no crop */}
-      <div className="w-full">
-        {images[0] && (
-          <div className="relative w-full">
+      {/* Thumb (cropped to fit) */}
+      <div className="shrink-0 w-[120px] sm:w-[140px]">
+        {images[0] ? (
+          <div
+            className="relative w-full overflow-hidden rounded-sm"
+            style={{ aspectRatio: "16/9" }}
+          >
             {images[0].url ? (
               <MediaImage
                 src={images[0].url}
                 alt=""
-                className="w-full h-auto block"
+                className="w-full h-full object-cover block"
               />
             ) : (
-              <div className="w-full min-h-[120px] bg-dose-gray-dark/40 flex items-center justify-center text-zinc-500 text-sm">
-                <span>Image pending</span>
+              <div className="w-full h-full bg-dose-gray-dark/40 flex items-center justify-center text-zinc-500 text-xs">
+                <span>Image</span>
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Text below */}
-      <div>
+      {/* Copy: full text, no clamp */}
+      <div className="min-w-0 flex-1">
         <a
           href={url ?? "#"}
           target={url ? "_blank" : undefined}
@@ -81,7 +84,7 @@ export function ArticleCard({ title, summary, url, author, source, images }: Art
             {[author, source].filter(Boolean).join(" · ")}
           </p>
         )}
-        <p className="text-sm leading-relaxed text-dose-gray-mid line-clamp-3">
+        <p className="text-sm leading-relaxed text-dose-gray-mid">
           {summary}
         </p>
       </div>
