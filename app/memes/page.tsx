@@ -11,9 +11,10 @@ function formatCategoryDate(dateStr: string): string {
   return `${m}/${day}/${y}`
 }
 
-function mediaToGridImage(m: MediaItem) {
-  const colSpan = m.size === "large" ? 3 : m.size === "medium" ? 2 : 1
-  const aspectRatio = m.size === "large" ? "16/9" : m.size === "medium" ? "4/3" : "1"
+function mediaToGridImage(m: MediaItem, index: number) {
+  // Grid determines size by position: first large, rest medium
+  const colSpan = index === 0 ? 3 : 2
+  const aspectRatio = index === 0 ? "16/9" : "4/3"
   return {
     id: m.id,
     url: m.url,
@@ -45,7 +46,7 @@ export default async function MemesPage() {
         .map((i) => ({ label: i.label, text: i.description })),
       images: [...post.media_items]
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map(mediaToGridImage),
+        .map((m, i) => mediaToGridImage(m, i)),
     }))
   )
 

@@ -644,27 +644,31 @@ export function CategoryEditor({
                       </label>
                     )}
                     {linkOnly && (
-                      <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-                        <Input
-                          placeholder="Paste link"
-                          value={m.external_link}
-                          onChange={(e) =>
-                            setMediaItems((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, external_link: e.target.value } : x))
-                            )
-                          }
-                          onBlur={() => {
-                            if (m.external_link?.trim()) handleUnfurlMedia(i, m.external_link)
-                          }}
-                          className="bg-[#0a0a0a] border-[#333] text-sm"
-                        />
-                        {unfurlLoading.media === i && (
-                          <span className="text-xs text-gray-500">Fetching preview…</span>
-                        )}
-                      </div>
+                      <label className={cn("flex items-center gap-1 border rounded px-2 py-1.5 text-sm cursor-pointer border-[#333]", uploading && "opacity-50")}>
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload("media", i)} disabled={uploading} />
+                        {uploading ? "…" : "Upload"}
+                      </label>
                     )}
                     {linkOnly && (
                       <>
+                        <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                          <Input
+                            placeholder="Paste link"
+                            value={m.external_link}
+                            onChange={(e) =>
+                              setMediaItems((prev) =>
+                                prev.map((x, j) => (j === i ? { ...x, external_link: e.target.value } : x))
+                              )
+                            }
+                            onBlur={() => {
+                              if (m.external_link?.trim()) handleUnfurlMedia(i, m.external_link)
+                            }}
+                            className="bg-[#0a0a0a] border-[#333] text-sm"
+                          />
+                          {unfurlLoading.media === i && (
+                            <span className="text-xs text-gray-500">Fetching preview…</span>
+                          )}
+                        </div>
                         <Input
                           placeholder="Caption"
                           value={m.caption}
@@ -675,23 +679,6 @@ export function CategoryEditor({
                           }
                           className="w-40 bg-[#0a0a0a] border-[#333]"
                         />
-                        <Select
-                          value={m.size}
-                          onValueChange={(v: "small" | "medium" | "large") =>
-                            setMediaItems((prev) =>
-                              prev.map((x, j) => (j === i ? { ...x, size: v } : x))
-                            )
-                          }
-                        >
-                          <SelectTrigger className="w-24 bg-[#0a0a0a] border-[#333]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </>
                     )}
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeMediaItem(i)}>
