@@ -70,3 +70,14 @@ export interface PostWithRelations extends Post {
 export interface EditionWithContent extends Edition {
   posts: (PostWithRelations & { category: Category })[]
 }
+
+/** Post with nested insights, media_items, articles (alias for category page use). */
+export type PostWithContent = PostWithRelations
+
+/** Category page: posts grouped by edition date, newest first. */
+export type CategoryPageData = {
+  dateGroups: {
+    date: string
+    posts: PostWithContent[]
+  }[]
+}
