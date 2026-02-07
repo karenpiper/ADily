@@ -103,6 +103,15 @@
   opacity: 0;
 }
 
+/* Image grid: force 3-column layout so items don't stack */
+.image-grid-root {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
 /* Staggered grid item animation */
 @keyframes gridFadeIn {
   from {

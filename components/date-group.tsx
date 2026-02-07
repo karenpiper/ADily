@@ -54,8 +54,8 @@ export function DateGroup({ date, headline, insights, images }: DateGroupProps) 
           </div>
         </div>
 
-        {/* Right - Image grid */}
-        <div className="lg:w-[58%] min-w-0 flex-1">
+        {/* Right - Image grid: ensure column has width so grid can layout */}
+        <div className="lg:w-[58%] min-w-0 flex-1 w-full" style={{ minWidth: 0 }}>
           <ImageGrid images={images} />
         </div>
       </div>
