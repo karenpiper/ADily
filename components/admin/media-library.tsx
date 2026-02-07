@@ -2,254 +2,337 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { MediaItem } from "@/lib/types"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { MediaImage } from "@/components/media-image"
-import { Upload, Copy, Check } from "lucide-react"
+import { Upload, Copy, Check, Trash2 } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-type MediaRow = MediaItem & {
-  post_headline?: string | null
-  edition_date?: string | null
+const ACCEPT_TYPES = ".jpg,.jpeg,.png,.gif,.webp,.mp4"
+const ACCEPT_TYPES_ATTR = "image/jpeg,image/png,image/gif,image/webp,video/mp4"
+
+type StorageFile = {
+  name: string
+  url: string
+  updated_at: string
+  isVideo: boolean
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9.-]/g, "_")
 }
 
 export function MediaLibrary() {
-  const [items, setItems] = useState<MediaRow[]>([])
+  const [files, setFiles] = useState<StorageFile[]>([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number
+    total: number
+    uploading: boolean
+  } | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [copiedName, setCopiedName] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StorageFile | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const supabase = createClient()
 
-  const fetchItems = useCallback(async () => {
-    const { data: rows, error } = await supabase
-      .from("media_items")
-      .select(`
-        *,
-        posts (
-          headline,
-          editions (date)
-        )
-      `)
-      .order("sort_order", { ascending: true })
+  const fetchFiles = useCallback(async () => {
+    const { data, error } = await supabase.storage
+      .from("media")
+      .list("", { limit: 1000 })
 
     if (error) {
       console.error(error)
-      setItems([])
+      setFiles([])
       return
     }
 
-    const mapped: MediaRow[] = (rows ?? []).map((row: Record<string, unknown>) => {
-      const rawPost = row.posts
-      const post = Array.isArray(rawPost) ? rawPost[0] : (rawPost as Record<string, unknown> | null)
-      const rawEdition = post?.editions ?? post?.edition
-      const edition = Array.isArray(rawEdition) ? rawEdition[0] : (rawEdition as { date?: string } | null)
+    const list = (data ?? []).filter(
+      (item): item is { name: string; updated_at?: string } =>
+        !!item.name && typeof item.name === "string"
+    )
+
+    const withUrls: StorageFile[] = list.map((item) => {
+      const { data: urlData } = supabase.storage.from("media").getPublicUrl(item.name)
+      const ext = item.name.split(".").pop()?.toLowerCase() ?? ""
+      const isVideo = ["mp4", "webm", "mov"].includes(ext)
       return {
-        id: row.id,
-        post_id: row.post_id,
-        type: row.type,
-        url: row.url,
-        thumbnail_url: row.thumbnail_url,
-        caption: row.caption,
-        external_link: row.external_link,
-        sort_order: row.sort_order,
-        size: row.size,
-        post_headline: post?.headline ?? null,
-        edition_date: edition?.date ?? null,
-      } as MediaRow
+        name: item.name,
+        url: urlData.publicUrl,
+        updated_at: item.updated_at ?? "",
+        isVideo,
+      }
     })
-    setItems(mapped)
+
+    withUrls.sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""))
+    setFiles(withUrls)
   }, [supabase])
 
   useEffect(() => {
     setLoading(true)
-    fetchItems().finally(() => setLoading(false))
-  }, [fetchItems])
+    fetchFiles().finally(() => setLoading(false))
+  }, [fetchFiles])
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    setUploadedUrl(null)
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const res = await fetch("/api/upload", { method: "POST", body: formData })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error ?? "Upload failed")
+  const handleFiles = useCallback(
+    async (fileList: FileList | null) => {
+      if (!fileList?.length) return
+      const accepted = Array.from(fileList).filter((f) => {
+        const ext = f.name.split(".").pop()?.toLowerCase()
+        return ["jpg", "jpeg", "png", "gif", "webp", "mp4"].includes(ext ?? "")
+      })
+      if (accepted.length === 0) {
+        alert("No valid files. Use .jpg, .jpeg, .png, .gif, .webp, or .mp4")
         return
       }
-      const { url } = await res.json()
-      setUploadedUrl(url)
-    } finally {
-      setUploading(false)
-      if (e.target) e.target.value = ""
-    }
+      const total = accepted.length
+      setUploadProgress({ current: 0, total, uploading: true })
+      for (let i = 0; i < accepted.length; i++) {
+        const file = accepted[i]
+        const path = `${Date.now()}-${i}-${sanitizeFileName(file.name)}`
+        const { error } = await supabase.storage.from("media").upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        })
+        if (error) {
+          console.error(error)
+          alert(`Upload failed: ${file.name} - ${error.message}`)
+        }
+        setUploadProgress((p) => (p ? { ...p, current: i + 1 } : null))
+      }
+      setUploadProgress(null)
+      setUploadModalOpen(false)
+      await fetchFiles()
+    },
+    [supabase, fetchFiles]
+  )
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    handleFiles(e.dataTransfer.files)
   }
 
-  const copyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedUrl(url)
-      setTimeout(() => setCopiedUrl(null), 2000)
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const onDragLeave = () => setDragOver(false)
+
+  const copyUrl = (file: StorageFile) => {
+    navigator.clipboard.writeText(file.url).then(() => {
+      setCopiedName(file.name)
+      setTimeout(() => setCopiedName(null), 2000)
     })
   }
 
-  const formatDate = (d: string | null | undefined) =>
-    d
-      ? new Date(d).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—"
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const { error } = await supabase.storage.from("media").remove([deleteTarget.name])
+    setDeleting(false)
+    setDeleteTarget(null)
+    if (error) {
+      console.error(error)
+      alert("Failed to delete file")
+      return
+    }
+    await fetchFiles()
+  }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-serif text-white">Media Library</h1>
-
-      <section className="rounded-lg border border-[#222] bg-[#0a0a0a] p-6">
-        <Label className="text-gray-300 mb-2 block">Upload new file</Label>
-        <p className="text-sm text-gray-500 mb-3">
-          Upload an image or video to Supabase Storage. Copy the URL and paste it into a post&apos;s media item in Memes, Design, or Video.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <label
-            className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
-              uploading && "opacity-50 pointer-events-none"
-            )}
+    <TooltipProvider>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-serif text-white">Media Library</h1>
+          <Button
+            onClick={() => setUploadModalOpen(true)}
+            className="bg-dose-orange hover:bg-dose-orange/90 gap-2"
           >
-            <input
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
             <Upload className="h-4 w-4" />
-            {uploading ? "Uploading…" : "Choose file"}
-          </label>
-          {uploadedUrl && (
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Input
-                readOnly
-                value={uploadedUrl}
-                className="bg-[#111] border-[#333] text-gray-300 text-sm flex-1 max-w-md"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[#333] shrink-0"
-                onClick={() => copyUrl(uploadedUrl)}
-              >
-                {copiedUrl === uploadedUrl ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          )}
+            Upload
+          </Button>
         </div>
-      </section>
 
-      <section>
-        <h2 className="text-lg font-medium text-gray-300 mb-3">Media in use</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Media items linked to posts. Add or edit media from Memes, Design, Video, or Articles.
-        </p>
         {loading ? (
           <p className="text-gray-500">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="text-gray-500">No media items yet.</p>
+        ) : files.length === 0 ? (
+          <p className="text-gray-500">No files yet. Upload images or videos to get started.</p>
         ) : (
-          <div className="rounded-lg border border-[#222] bg-[#0a0a0a] overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-[#222] hover:bg-transparent">
-                  <TableHead className="text-gray-400 w-[80px]">Preview</TableHead>
-                  <TableHead className="text-gray-400">URL</TableHead>
-                  <TableHead className="text-gray-400">Caption</TableHead>
-                  <TableHead className="text-gray-400 w-[80px]">Type</TableHead>
-                  <TableHead className="text-gray-400 w-[80px]">Size</TableHead>
-                  <TableHead className="text-gray-400">Post / Edition</TableHead>
-                  <TableHead className="text-gray-400 w-[60px] text-right">Copy</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id} className="border-[#222]">
-                    <TableCell className="p-1">
-                      <div className="w-14 h-14 rounded overflow-hidden bg-[#111] relative">
-                        {item.type === "video" ? (
-                          <video
-                            src={item.url}
-                            className="w-full h-full object-cover"
-                            muted
-                            playsInline
-                            preload="metadata"
-                          />
-                        ) : (
-                          <MediaImage
-                            src={item.url}
-                            alt={item.caption ?? ""}
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-sm max-w-[200px] truncate font-mono">
-                      {item.url}
-                    </TableCell>
-                    <TableCell className="text-gray-300 text-sm max-w-[180px] truncate">
-                      {item.caption ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-sm">
-                      {item.type}
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-sm">
-                      {item.size}
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-sm">
-                      <span className="block truncate max-w-[160px]" title={item.post_headline ?? undefined}>
-                        {item.post_headline ?? "—"}
-                      </span>
-                      <span className="text-gray-500 text-xs">{formatDate(item.edition_date)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {files.map((file) => (
+              <div
+                key={file.name}
+                className="rounded-lg border border-[#222] bg-[#0a0a0a] overflow-hidden flex flex-col"
+              >
+                <div className="aspect-square w-full bg-[#111] relative">
+                  {file.isVideo ? (
+                    <video
+                      src={file.url}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <MediaImage
+                      src={file.url}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <p className="text-sm text-gray-300 truncate px-2 py-2" title={file.name}>
+                  {file.name}
+                </p>
+                <div className="flex items-center gap-1 p-2 pt-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-gray-400 hover:text-dose-orange"
-                        onClick={() => copyUrl(item.url)}
-                        title="Copy URL"
+                        className="h-8 w-8 text-gray-400 hover:text-dose-orange shrink-0"
+                        onClick={() => copyUrl(file)}
                       >
-                        {copiedUrl === item.url ? (
+                        {copiedName === file.name ? (
                           <Check className="h-4 w-4 text-green-500" />
                         ) : (
                           <Copy className="h-4 w-4" />
                         )}
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{copiedName === file.name ? "Copied!" : "Copy URL"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-red-400 shrink-0"
+                        onClick={() => setDeleteTarget(file)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </section>
-    </div>
+
+        {/* Upload modal */}
+        <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+          <DialogContent className="max-w-md bg-[#0a0a0a] border-[#222] text-gray-200">
+            <DialogHeader>
+              <DialogTitle className="text-white">Upload files</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                  dragOver ? "border-dose-orange bg-dose-orange/10" : "border-[#333] bg-[#111]"
+                )}
+              >
+                <input
+                  type="file"
+                  accept={ACCEPT_TYPES_ATTR}
+                  multiple
+                  className="hidden"
+                  id="media-upload-input"
+                  onChange={(e) => {
+                    handleFiles(e.target.files)
+                    e.target.value = ""
+                  }}
+                  disabled={!!uploadProgress?.uploading}
+                />
+                <label
+                  htmlFor="media-upload-input"
+                  className="cursor-pointer block text-sm text-gray-400 hover:text-gray-200"
+                >
+                  <Upload className="h-10 w-10 mx-auto mb-2 text-gray-500" />
+                  <p>Drag & drop files here, or click to browse</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    .jpg, .jpeg, .png, .gif, .webp, .mp4
+                  </p>
+                </label>
+              </div>
+              {uploadProgress?.uploading && (
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-400">
+                    Uploading {uploadProgress.current} of {uploadProgress.total}…
+                  </p>
+                  <div className="h-2 rounded-full bg-[#222] overflow-hidden">
+                    <div
+                      className="h-full bg-dose-orange transition-all duration-300"
+                      style={{
+                        width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete confirmation */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={() => !deleting && setDeleteTarget(null)}>
+          <AlertDialogContent className="bg-[#0a0a0a] border-[#222]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">
+                Delete file
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                Remove &quot;{deleteTarget?.name}&quot; from storage? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-[#333]" disabled={deleting}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   )
 }
