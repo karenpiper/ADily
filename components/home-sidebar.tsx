@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { MediaImage } from "@/components/media-image"
 
 const navItems = [
   { label: "Memes", href: "/memes" },
@@ -20,9 +21,9 @@ export function HomeSidebar({ featuredImageUrl }: HomeSidebarProps = {}) {
       </p>
 
       {/* Featured image */}
-      <div className="w-[200px] h-[150px] rounded-lg bg-dose-gray-dark/50 overflow-hidden">
+      <div className="w-[200px] h-[150px] rounded-lg bg-dose-gray-dark/50 overflow-hidden relative">
         {featuredImageUrl ? (
-          <img
+          <MediaImage
             src={featuredImageUrl}
             alt="Featured"
             className="w-full h-full object-cover"

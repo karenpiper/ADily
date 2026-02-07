@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { MediaImage } from "@/components/media-image"
 
 interface ArticleImage {
   id: string
@@ -73,13 +74,15 @@ export function ArticleCard({ title, summary, url, images }: ArticleCardProps) {
             >
               <div className="w-full h-full bg-dose-gray-dark/60 transition-transform duration-200 group-hover:scale-[1.02]">
                 {img.url ? (
-                  <img
+                  <MediaImage
                     src={img.url}
                     alt=""
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60 flex items-center justify-center text-zinc-500 text-sm">
+                    <span>Image pending upload</span>
+                  </div>
                 )}
               </div>
             </div>

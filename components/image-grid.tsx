@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { MediaImage } from "@/components/media-image"
 
 export interface GridImage {
   id: string
@@ -54,14 +55,16 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
         preload="metadata"
       />
     ) : (
-      <img
+      <MediaImage
         src={image.url}
-        alt=""
+        alt={image.thumbnailUrl ?? "Media"}
         className="w-full h-full object-cover"
       />
     )
   ) : (
-    <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+    <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60 flex items-center justify-center text-zinc-500 text-sm">
+      <span>Image pending upload</span>
+    </div>
   )
 
   return (
