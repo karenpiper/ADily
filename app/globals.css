@@ -103,17 +103,26 @@
   opacity: 0;
 }
 
-/* Image grid: force 3-column layout so items don't stack */
+/* Pinterest-style image grid: multi-column layout (works even when Grid is broken) */
 .image-grid-root {
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 4px;
-  width: 100% !important;
-  min-width: 0;
+  column-count: 3;
+  column-gap: 8px;
+  width: 100%;
   box-sizing: border-box;
 }
+@media (max-width: 768px) {
+  .image-grid-root {
+    column-count: 2;
+  }
+}
+@media (max-width: 480px) {
+  .image-grid-root {
+    column-count: 1;
+  }
+}
 .image-grid-root > * {
-  min-width: 0;
+  break-inside: avoid;
+  margin-bottom: 8px;
   box-sizing: border-box;
 }
 
