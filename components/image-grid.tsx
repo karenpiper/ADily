@@ -47,12 +47,12 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     return () => observer.disconnect()
   }, [])
 
-  const aspectRatio = image.aspectRatio || "4/3"
+  /* Scale to fit grid: natural aspect ratio, no crop. No fixed aspect ratio on wrapper. */
   const mediaContent = embedUrl ? (
     <iframe
       src={visible ? embedUrl : undefined}
       title="Social embed"
-      className="w-full h-full min-h-[300px] border-0 block"
+      className="w-full min-h-[300px] border-0 block"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowFullScreen
     />
@@ -61,7 +61,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       <video
         src={image.url}
         poster={image.thumbnailUrl ?? undefined}
-        className="w-full h-full object-cover object-center block"
+        className="w-full h-auto block"
         muted
         playsInline
         loop
@@ -71,11 +71,11 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       <MediaImage
         src={image.url}
         alt={image.thumbnailUrl ?? "Media"}
-        className="w-full h-full object-cover object-center block"
+        className="w-full h-auto block"
       />
     )
   ) : (
-    <div className="w-full flex items-center justify-center text-zinc-500 text-sm bg-dose-gray-dark/30" style={{ aspectRatio }}>
+    <div className="w-full flex items-center justify-center text-zinc-500 text-sm bg-dose-gray-dark/30 min-h-[120px]">
       <span>Image pending upload</span>
     </div>
   )
@@ -84,13 +84,10 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     <div
       ref={ref}
       className="relative w-full"
-      style={{
-        aspectRatio,
-        animationDelay: `${index * 100}ms`,
-      }}
+      style={{ animationDelay: `${index * 100}ms` }}
     >
       <div
-        className={`w-full h-full ${visible ? "grid-item-animate" : "opacity-0"}`}
+        className={`w-full ${visible ? "grid-item-animate" : "opacity-0"}`}
         style={{ animationDelay: `${index * 100}ms` }}
       >
         {mediaContent}

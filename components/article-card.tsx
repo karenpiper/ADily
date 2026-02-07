@@ -47,21 +47,18 @@ export function ArticleCard({ title, summary, url, author, source, images }: Art
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
-      {/* Image on top for grid layout */}
+      {/* Image on top: natural aspect ratio, scaled to fit, no crop */}
       <div className="w-full">
         {images[0] && (
-          <div
-            className="relative w-full overflow-hidden"
-            style={{ aspectRatio: images[0].aspectRatio || "16/9" }}
-          >
+          <div className="relative w-full">
             {images[0].url ? (
               <MediaImage
                 src={images[0].url}
                 alt=""
-                className="w-full h-full object-cover block"
+                className="w-full h-auto block"
               />
             ) : (
-              <div className="w-full h-full bg-dose-gray-dark/40 flex items-center justify-center text-zinc-500 text-sm">
+              <div className="w-full min-h-[120px] bg-dose-gray-dark/40 flex items-center justify-center text-zinc-500 text-sm">
                 <span>Image pending</span>
               </div>
             )}
