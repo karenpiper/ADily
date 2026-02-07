@@ -1,70 +1,70 @@
 import { CategoryLayout } from "@/components/category-layout"
 import { DateGroup } from "@/components/date-group"
+import { getPostsByCategory, getCategoryBySlug } from "@/lib/data"
+import type { MediaItem } from "@/lib/types"
 
-const memesData = [
-  {
-    date: "2/2/2026",
-    headline:
-      "Audiences, yearning for more, are transforming online fatigue into real-life fulfillment.",
-    insights: [
-      {
-        label: "Nostalgia Reigns",
-        text: "Audiences crave nostalgic content that provides an emotional connection and reflects both the evolution of pop culture and their own personal lives.",
-      },
-      {
-        label: "Social Media Fatigue",
-        text: "Users are growing weary of endless scrolling through the ever-changing landscapes of social media, feeling overwhelmed by constant updates and curated content.",
-      },
-      {
-        label: "Audience Seek Empowerment",
-        text: "Inspirational content that encourages people to embrace spontaneity and be more experimental with life choices.",
-      },
-    ],
-    images: [
-      { id: "m1", colSpan: 2, rowSpan: 1, aspectRatio: "4/3" },
-      { id: "m2", colSpan: 1, rowSpan: 1, aspectRatio: "1/1" },
-      { id: "m3", colSpan: 1, rowSpan: 1, aspectRatio: "1/1" },
-      { id: "m4", colSpan: 2, rowSpan: 1, aspectRatio: "4/3" },
-    ],
-  },
-  {
-    date: "12/2025",
-    headline:
-      "Digital culture is shifting from passive consumption to active meaning-making.",
-    insights: [
-      {
-        label: "Community Over Content",
-        text: "Users are gravitating toward platforms that prioritize genuine community interaction.",
-      },
-      {
-        label: "Slow Social",
-        text: "A counter-movement to infinite scroll encourages mindful, intentional social media use.",
-      },
-    ],
-    images: [
-      { id: "m5", colSpan: 1, rowSpan: 1, aspectRatio: "4/3" },
-      { id: "m6", colSpan: 2, rowSpan: 1, aspectRatio: "4/3" },
-      { id: "m7", colSpan: 3, rowSpan: 1, aspectRatio: "16/9" },
-    ],
-  },
-]
+function formatCategoryDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const y = d.getFullYear()
+  return `${m}/${day}/${y}`
+}
 
-export default function MemesPage() {
+function mediaToGridImage(m: MediaItem) {
+  const colSpan = m.size === "large" ? 3 : m.size === "medium" ? 2 : 1
+  return {
+    id: m.id,
+    url: m.url,
+    thumbnailUrl: m.thumbnail_url ?? undefined,
+    isVideo: m.type === "video",
+    colSpan,
+    rowSpan: 1,
+    aspectRatio: "4/3" as const,
+  }
+}
+
+export default async function MemesPage() {
+  const [categoryData, category] = await Promise.all([
+    getPostsByCategory("memes"),
+    getCategoryBySlug("memes"),
+  ])
+
+  const description =
+    category?.description ??
+    "Current memes, and random silly social things to understand our audiences' worlds and the current cultural mood."
+
+  const postSections = categoryData.dateGroups.flatMap((group) =>
+    group.posts.map((post) => ({
+      date: formatCategoryDate(group.date),
+      headline: post.headline,
+      insights: [...post.post_insights]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((i) => ({ label: i.label, text: i.description })),
+      images: [...post.media_items]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(mediaToGridImage),
+    }))
+  )
+
   return (
-    <CategoryLayout
-      activeCategory="memes"
-      description="Current memes, and random silly social things to understand our audiences' worlds and the current cultural mood."
-    >
+    <CategoryLayout activeCategory="memes" description={description}>
       <div className="flex flex-col gap-20">
-        {memesData.map((group) => (
-          <DateGroup
-            key={group.date}
-            date={group.date}
-            headline={group.headline}
-            insights={group.insights}
-            images={group.images}
-          />
-        ))}
+        {postSections.length === 0 ? (
+          <p className="text-dose-cream font-serif text-lg">
+            No content yet
+          </p>
+        ) : (
+          postSections.map((section, i) => (
+            <DateGroup
+              key={`${section.date}-${i}`}
+              date={section.date}
+              headline={section.headline}
+              insights={section.insights}
+              images={section.images}
+            />
+          ))
+        )}
       </div>
     </CategoryLayout>
   )

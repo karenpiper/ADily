@@ -1,52 +1,70 @@
 import { CategoryLayout } from "@/components/category-layout"
 import { DateGroup } from "@/components/date-group"
+import { getPostsByCategory, getCategoryBySlug } from "@/lib/data"
+import type { MediaItem } from "@/lib/types"
 
-const designData = [
-  {
-    date: "2/2/2026",
-    headline:
-      "Design That Cuts Through Complexity, Humanizes Experience, and Brings Creative Ideas to Life Through Shape, Scale, and Motion",
-    insights: [
-      {
-        label: "These brands don't add complexity - they clarify",
-        text: "Clear forms, deliberate choices, and purposeful design make the message easier to see, understand, and remember.",
-      },
-      {
-        label: "They simplify the complex and humanize UI",
-        text: "Brands are making innovation feel accessible by turning powerful tools into experiences audiences instantly understand and trust.",
-      },
-      {
-        label: "Shape, Scale, and Perspective",
-        text: "Using motion, sound, and perspective to guide attention, create depth, and make ideas feel more immersive and intuitive.",
-      },
-    ],
-    images: [
-      { id: "d1", colSpan: 2, rowSpan: 1, aspectRatio: "3/4", isVideo: true },
-      { id: "d2", colSpan: 1, rowSpan: 1, aspectRatio: "3/4" },
-      { id: "d3", colSpan: 1, rowSpan: 1, aspectRatio: "16/9" },
-      { id: "d4", colSpan: 2, rowSpan: 1, aspectRatio: "16/9", isVideo: true },
-      { id: "d5", colSpan: 2, rowSpan: 1, aspectRatio: "3/4" },
-      { id: "d6", colSpan: 1, rowSpan: 1, aspectRatio: "3/4" },
-    ],
-  },
-]
+function formatCategoryDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const y = d.getFullYear()
+  return `${m}/${day}/${y}`
+}
 
-export default function DesignPage() {
+function mediaToGridImage(m: MediaItem) {
+  const colSpan = m.size === "large" ? 3 : m.size === "medium" ? 2 : 1
+  return {
+    id: m.id,
+    url: m.url,
+    thumbnailUrl: m.thumbnail_url ?? undefined,
+    isVideo: m.type === "video",
+    colSpan,
+    rowSpan: 1,
+    aspectRatio: "4/3" as const,
+  }
+}
+
+export default async function DesignPage() {
+  const [categoryData, category] = await Promise.all([
+    getPostsByCategory("design"),
+    getCategoryBySlug("design"),
+  ])
+
+  const description =
+    category?.description ??
+    "Thought starters for design templates and use of motion outside of Amazon."
+
+  const postSections = categoryData.dateGroups.flatMap((group) =>
+    group.posts.map((post) => ({
+      date: formatCategoryDate(group.date),
+      headline: post.headline,
+      insights: [...post.post_insights]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((i) => ({ label: i.label, text: i.description })),
+      images: [...post.media_items]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(mediaToGridImage),
+    }))
+  )
+
   return (
-    <CategoryLayout
-      activeCategory="design"
-      description="Thought starters for design templates and use of motion outside of Amazon."
-    >
+    <CategoryLayout activeCategory="design" description={description}>
       <div className="flex flex-col gap-20">
-        {designData.map((group) => (
-          <DateGroup
-            key={group.date}
-            date={group.date}
-            headline={group.headline}
-            insights={group.insights}
-            images={group.images}
-          />
-        ))}
+        {postSections.length === 0 ? (
+          <p className="text-dose-cream font-serif text-lg">
+            No content yet
+          </p>
+        ) : (
+          postSections.map((section, i) => (
+            <DateGroup
+              key={`${section.date}-${i}`}
+              date={section.date}
+              headline={section.headline}
+              insights={section.insights}
+              images={section.images}
+            />
+          ))
+        )}
       </div>
     </CategoryLayout>
   )

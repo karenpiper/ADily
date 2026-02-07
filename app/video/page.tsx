@@ -1,56 +1,70 @@
 import { CategoryLayout } from "@/components/category-layout"
 import { DateGroup } from "@/components/date-group"
+import { getPostsByCategory, getCategoryBySlug } from "@/lib/data"
+import type { MediaItem } from "@/lib/types"
 
-const videoData = [
-  {
-    date: "2/2/2026",
-    headline:
-      "Audiences crave content that puts humans first, digs beneath the surface, offers space to recharge and connect.",
-    insights: [
-      {
-        label: "Beyond the Surface",
-        text: "Audiences are looking for content that offers escape through obscure layered humor or uncovers a deeper meaning, giving audiences more than what meets the eye.",
-      },
-      {
-        label: "Unplug to Recharge",
-        text: "Users are making efforts to escape endless feeds, looking for offline experiences to recharge, find balance, and fight social media burnout.",
-      },
-      {
-        label: "Creators Shine, Audiences Engage",
-        text: "Audiences light up for content that spotlights brand-creator partnerships, while fast, culturally tuned brand reactions boost engagement and signal authenticity.",
-      },
-      {
-        label: "See the People, Not Just the Product",
-        text: "Users are drawn to content that goes beyond the product, highlighting office culture through behind-the-scenes content and offering a more human-focused perspective from the brand.",
-      },
-    ],
-    images: [
-      { id: "v1", colSpan: 2, rowSpan: 1, aspectRatio: "9/16", isVideo: true },
-      { id: "v2", colSpan: 1, rowSpan: 1, aspectRatio: "16/9", isVideo: true },
-      { id: "v3", colSpan: 1, rowSpan: 1, aspectRatio: "9/16", isVideo: true },
-      { id: "v4", colSpan: 2, rowSpan: 1, aspectRatio: "16/9", isVideo: true },
-      { id: "v5", colSpan: 2, rowSpan: 1, aspectRatio: "9/16", isVideo: true },
-      { id: "v6", colSpan: 1, rowSpan: 1, aspectRatio: "16/9", isVideo: true },
-    ],
-  },
-]
+function formatCategoryDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const m = d.getMonth() + 1
+  const day = d.getDate()
+  const y = d.getFullYear()
+  return `${m}/${day}/${y}`
+}
 
-export default function VideoPage() {
+function mediaToGridImage(m: MediaItem) {
+  const colSpan = m.size === "large" ? 3 : m.size === "medium" ? 2 : 1
+  return {
+    id: m.id,
+    url: m.url,
+    thumbnailUrl: m.thumbnail_url ?? undefined,
+    isVideo: m.type === "video",
+    colSpan,
+    rowSpan: 1,
+    aspectRatio: "4/3" as const,
+  }
+}
+
+export default async function VideoPage() {
+  const [categoryData, category] = await Promise.all([
+    getPostsByCategory("video"),
+    getCategoryBySlug("video"),
+  ])
+
+  const description =
+    category?.description ??
+    "Social trends, and other things happening on video that are relevant to the people we speak to and their wider world."
+
+  const postSections = categoryData.dateGroups.flatMap((group) =>
+    group.posts.map((post) => ({
+      date: formatCategoryDate(group.date),
+      headline: post.headline,
+      insights: [...post.post_insights]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((i) => ({ label: i.label, text: i.description })),
+      images: [...post.media_items]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(mediaToGridImage),
+    }))
+  )
+
   return (
-    <CategoryLayout
-      activeCategory="video"
-      description="Social trends, and other things happening on video that are relevant to the people we speak to and their wider world."
-    >
+    <CategoryLayout activeCategory="video" description={description}>
       <div className="flex flex-col gap-20">
-        {videoData.map((group) => (
-          <DateGroup
-            key={group.date}
-            date={group.date}
-            headline={group.headline}
-            insights={group.insights}
-            images={group.images}
-          />
-        ))}
+        {postSections.length === 0 ? (
+          <p className="text-dose-cream font-serif text-lg">
+            No content yet
+          </p>
+        ) : (
+          postSections.map((section, i) => (
+            <DateGroup
+              key={`${section.date}-${i}`}
+              date={section.date}
+              headline={section.headline}
+              insights={section.insights}
+              images={section.images}
+            />
+          ))
+        )}
       </div>
     </CategoryLayout>
   )

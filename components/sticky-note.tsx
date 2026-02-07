@@ -1,6 +1,12 @@
 "use client"
 
-export function StickyNote() {
+interface StickyNoteProps {
+  date: string
+  heroDescription: string
+  heroSummary: string
+}
+
+export function StickyNote({ date, heroDescription, heroSummary }: StickyNoteProps) {
   return (
     <div className="animate-float relative w-full max-w-[500px]">
       {/* Masking tape */}
@@ -22,22 +28,17 @@ export function StickyNote() {
       >
         {/* Date */}
         <span className="absolute top-4 right-5 text-sm text-dose-gray-dark/60 font-hand">
-          01-22 - 25
+          {date}
         </span>
 
         {/* First paragraph */}
         <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif mb-4 pr-16">
-          A lightweight, always-on social intelligence and inspiration program
-          designed to keep Amazon Ads{"'"} social work modern, credible, and
-          performance-driven
+          {heroDescription}
         </p>
 
         {/* Second paragraph */}
         <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif font-bold">
-          This week, users are reflecting on simpler times and exploring ways to
-          use social media more intentionally, while some express frustration
-          with how platforms are influencing their online experience and
-          communities.
+          {heroSummary}
         </p>
       </div>
     </div>

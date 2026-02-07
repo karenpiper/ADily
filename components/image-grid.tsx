@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react"
 
-interface GridImage {
+export interface GridImage {
   id: string
   colSpan?: number
   rowSpan?: number
   aspectRatio?: string
   isVideo?: boolean
+  url?: string
+  thumbnailUrl?: string
 }
 
 export function ImageGrid({ images }: { images: GridImage[] }) {
@@ -40,6 +42,28 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     return () => observer.disconnect()
   }, [])
 
+  const mediaContent = image.url ? (
+    image.isVideo ? (
+      <video
+        src={image.url}
+        poster={image.thumbnailUrl ?? undefined}
+        className="w-full h-full object-cover"
+        muted
+        playsInline
+        loop
+        preload="metadata"
+      />
+    ) : (
+      <img
+        src={image.url}
+        alt=""
+        className="w-full h-full object-cover"
+      />
+    )
+  ) : (
+    <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+  )
+
   return (
     <div
       ref={ref}
@@ -57,8 +81,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
         }`}
         style={{ animationDelay: `${index * 100}ms` }}
       >
-        {/* Placeholder gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+        {mediaContent}
       </div>
       {image.isVideo && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

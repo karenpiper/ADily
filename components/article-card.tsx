@@ -7,15 +7,17 @@ interface ArticleImage {
   colSpan?: number
   rowSpan?: number
   aspectRatio?: string
+  url?: string
 }
 
 interface ArticleCardProps {
   title: string
   summary: string
+  url?: string
   images: ArticleImage[]
 }
 
-export function ArticleCard({ title, summary, images }: ArticleCardProps) {
+export function ArticleCard({ title, summary, url, images }: ArticleCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
 
@@ -45,7 +47,9 @@ export function ArticleCard({ title, summary, images }: ArticleCardProps) {
       {/* Text side */}
       <div className="md:w-[35%]">
         <a
-          href="#"
+          href={url ?? "#"}
+          target={url ? "_blank" : undefined}
+          rel={url ? "noopener noreferrer" : undefined}
           className="text-lg font-serif text-foreground underline underline-offset-4 hover:text-dose-orange transition-colors duration-150 leading-snug block mb-4"
         >
           {title}
@@ -58,7 +62,7 @@ export function ArticleCard({ title, summary, images }: ArticleCardProps) {
       {/* Image collage side */}
       <div className="md:w-[65%]">
         <div className="grid grid-cols-2 gap-1">
-          {images.map((img, i) => (
+          {images.map((img) => (
             <div
               key={img.id}
               className="relative overflow-hidden rounded-lg group"
@@ -68,7 +72,15 @@ export function ArticleCard({ title, summary, images }: ArticleCardProps) {
               }}
             >
               <div className="w-full h-full bg-dose-gray-dark/60 transition-transform duration-200 group-hover:scale-[1.02]">
-                <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+                {img.url ? (
+                  <img
+                    src={img.url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-dose-gray-dark/80 to-dose-black/60" />
+                )}
               </div>
             </div>
           ))}

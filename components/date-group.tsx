@@ -11,6 +11,8 @@ interface GridImage {
   rowSpan?: number
   aspectRatio?: string
   isVideo?: boolean
+  url?: string
+  thumbnailUrl?: string
 }
 
 interface DateGroupProps {

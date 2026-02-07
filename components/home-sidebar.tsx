@@ -7,7 +7,11 @@ const navItems = [
   { label: "Articles", href: "/articles" },
 ]
 
-export function HomeSidebar() {
+interface HomeSidebarProps {
+  featuredImageUrl?: string | null
+}
+
+export function HomeSidebar({ featuredImageUrl }: HomeSidebarProps = {}) {
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Welcome */}
@@ -15,9 +19,17 @@ export function HomeSidebar() {
         Welcome to your ADily Dose
       </p>
 
-      {/* Placeholder image */}
+      {/* Featured image */}
       <div className="w-[200px] h-[150px] rounded-lg bg-dose-gray-dark/50 overflow-hidden">
-        <div className="w-full h-full bg-gradient-to-br from-dose-gray-dark/40 to-dose-black/30" />
+        {featuredImageUrl ? (
+          <img
+            src={featuredImageUrl}
+            alt="Featured"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-dose-gray-dark/40 to-dose-black/30" />
+        )}
       </div>
 
       {/* Orange rule */}
