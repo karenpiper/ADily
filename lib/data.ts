@@ -4,7 +4,9 @@ import type {
   CategoryPageData,
   Edition,
   EditionWithContent,
+  EditionWithThemes,
   PostWithRelations,
+  ThemeWithPosts,
 } from '@/lib/types'
 
 // Fetches the current edition with featured_meme_url for the homepage
@@ -106,6 +108,86 @@ export async function getAllCategories(): Promise<Category[]> {
 
 // Fetches all editions ordered by date desc (for admin)
 export async function getAllEditions(): Promise<Edition[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('editions')
+    .select('*')
+    .order('date', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+// Fetches a single edition with its 3 themes and each theme's posts (support points, proof, content)
+export async function getEditionWithThemes(
+  editionId: string
+): Promise<EditionWithThemes | null> {
+  try {
+    const supabase = await createClient()
+
+    const { data: edition, error: edError } = await supabase
+      .from('editions')
+      .select('*')
+      .eq('id', editionId)
+      .maybeSingle()
+
+    if (edError || !edition) return null
+
+    const { data: themeRows, error: thError } = await supabase
+      .from('themes')
+      .select(
+        '*, posts(*, post_insights(*), media_items(*), articles(*))'
+      )
+      .eq('edition_id', editionId)
+      .order('sort_order', { ascending: true })
+
+    if (thError) return null
+
+  type ThemeRow = (typeof themeRows)[0] & {
+    posts: (PostWithRelations & { post_insights?: unknown[]; media_items?: unknown[]; articles?: unknown[] })[]
+  }
+
+  const themes: ThemeWithPosts[] = (themeRows ?? []).map((t: ThemeRow) => ({
+    id: t.id,
+    edition_id: t.edition_id,
+    name: t.name,
+    slug: t.slug,
+    description: t.description ?? null,
+    sort_order: t.sort_order,
+    posts: (t.posts ?? [])
+      .sort((a: { created_at?: string }, b: { created_at?: string }) =>
+        (b.created_at ?? '').localeCompare(a.created_at ?? '')
+      )
+      .map((p: Record<string, unknown>) => ({
+        id: p.id,
+        edition_id: p.edition_id,
+        category_id: p.category_id,
+        theme_id: p.theme_id ?? null,
+        headline: p.headline,
+        created_at: p.created_at,
+        post_insights: (p.post_insights ?? []).sort(
+          (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+        ),
+        media_items: (p.media_items ?? []).sort(
+          (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+        ),
+        articles: (p.articles ?? []).sort(
+          (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+        ),
+      })),
+  }))
+
+  return {
+    ...edition,
+    themes,
+  }
+  } catch {
+    return null
+  }
+}
+
+// Fetches all editions for archive (newest first)
+export async function getEditionsForArchive(): Promise<Edition[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('editions')

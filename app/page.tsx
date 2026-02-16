@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { AmazonAdsLogo } from "@/components/amazon-ads-logo"
 import { HomeTitle } from "@/components/home-title"
 import { StickyNote } from "@/components/sticky-note"
@@ -39,11 +40,19 @@ export default async function HomePage() {
           <HomeTitle />
           <div className="mt-16 lg:mt-20">
             {edition ? (
-              <StickyNote
-                date={formatEditionDate(edition.date)}
-                heroDescription={edition.hero_description}
-                heroSummary={edition.hero_summary}
-              />
+              <>
+                <StickyNote
+                  date={formatEditionDate(edition.date)}
+                  heroDescription={edition.hero_description}
+                  heroSummary={edition.hero_summary}
+                />
+                <Link
+                  href={`/edition/${edition.id}`}
+                  className="inline-block mt-6 rounded-full px-5 py-2 text-sm font-medium bg-dose-orange text-white hover:bg-dose-orange/90 transition-colors"
+                >
+                  View this edition
+                </Link>
+              </>
             ) : (
               <p className="text-dose-cream font-serif text-lg">
                 No current edition
@@ -55,7 +64,10 @@ export default async function HomePage() {
         {/* Right side */}
         <div className="lg:w-[35%] flex items-center justify-center px-6 md:px-12 lg:px-8 py-12 lg:py-0">
           <div className="w-full max-w-[300px]">
-            <HomeSidebar featuredImageUrl={edition?.featured_meme_url ?? null} />
+            <HomeSidebar
+              featuredImageUrl={edition?.featured_meme_url ?? null}
+              currentEditionId={edition?.id ?? null}
+            />
           </div>
         </div>
       </div>

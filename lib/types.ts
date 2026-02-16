@@ -21,6 +21,15 @@ export interface Edition {
   created_at: string
 }
 
+export interface Theme {
+  id: string
+  edition_id: string
+  name: string
+  slug: string
+  description: string | null
+  sort_order: number
+}
+
 export interface Category {
   id: string
   name: string
@@ -33,6 +42,7 @@ export interface Post {
   id: string
   edition_id: string
   category_id: string
+  theme_id: string | null
   headline: string
   created_at: string
 }
@@ -82,6 +92,16 @@ export interface PostWithRelations extends Post {
 
 export interface EditionWithContent extends Edition {
   posts: (PostWithRelations & { category: Category })[]
+}
+
+/** Theme with its posts (support points = insights, proof = media, content = headline + articles) */
+export interface ThemeWithPosts extends Theme {
+  posts: PostWithRelations[]
+}
+
+/** Edition with 3 themes, each with posts (for edition page) */
+export interface EditionWithThemes extends Edition {
+  themes: ThemeWithPosts[]
 }
 
 /** Post with nested insights, media_items, articles (alias for category page use). */

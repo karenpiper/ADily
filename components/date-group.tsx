@@ -26,8 +26,9 @@ interface DateGroupProps {
 export function DateGroup({ date, headline, insights, images }: DateGroupProps) {
   return (
     <section className="animate-fade-in">
-      {/* Date label */}
-      <p className="text-[16px] font-sans text-dose-orange mb-4">{date}</p>
+      {date ? (
+        <p className="text-[16px] font-sans text-dose-orange mb-4">{date}</p>
+      ) : null}
 
       {/* Two columns: CSS Grid so right column has definite width for image grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[42fr_58fr] gap-10">

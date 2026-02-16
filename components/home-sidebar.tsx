@@ -1,18 +1,27 @@
 import Link from "next/link"
 import { MediaImage } from "@/components/media-image"
 
-const navItems = [
-  { label: "Memes", href: "/memes" },
-  { label: "Design", href: "/design" },
-  { label: "Videos", href: "/video" },
-  { label: "Articles", href: "/articles" },
-]
-
 interface HomeSidebarProps {
   featuredImageUrl?: string | null
+  /** Current edition id for "Current edition" link; if null, link goes to /archive */
+  currentEditionId?: string | null
 }
 
-export function HomeSidebar({ featuredImageUrl }: HomeSidebarProps = {}) {
+function getNavItems(currentEditionId: string | null) {
+  return [
+    {
+      label: "Current edition",
+      href: currentEditionId ? `/edition/${currentEditionId}` : "/archive",
+    },
+    { label: "Archive", href: "/archive" },
+  ]
+}
+
+export function HomeSidebar({
+  featuredImageUrl = null,
+  currentEditionId = null,
+}: HomeSidebarProps = {}) {
+  const navItems = getNavItems(currentEditionId ?? null)
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Welcome */}
