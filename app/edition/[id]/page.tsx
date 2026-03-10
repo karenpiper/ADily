@@ -3,7 +3,7 @@ import { EditionLayout } from "@/components/edition-layout"
 import { DateGroup } from "@/components/date-group"
 import { ArticleCard } from "@/components/article-card"
 import { ImageGrid } from "@/components/image-grid"
-import { getEditionWithThemes } from "@/lib/data"
+import { getEditionWithThemes, getCurrentEdition } from "@/lib/data"
 import type { MediaItem, Article } from "@/lib/types"
 
 function formatEditionDate(dateStr: string): string {
@@ -39,18 +39,24 @@ export default async function EditionPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const edition = await getEditionWithThemes(id)
+  const [edition, currentEdition] = await Promise.all([
+    getEditionWithThemes(id),
+    getCurrentEdition(),
+  ])
   if (!edition) notFound()
 
   const dateLabel = formatEditionDate(edition.date)
 
   return (
-    <EditionLayout editionDate={dateLabel}>
+    <EditionLayout
+      editionDate={dateLabel}
+      currentEditionId={currentEdition?.id ?? null}
+    >
       <div className="animate-fade-in">
         {/* Edition hero */}
         <div className="mb-16">
           <p className="text-[16px] font-sans text-dose-orange mb-2">{dateLabel}</p>
-          <h1 className="text-[32px] font-serif leading-tight text-foreground mb-4">
+          <h1 className="text-[32px] font-serif leading-tight text-foreground mb-4 uppercase">
             {edition.hero_summary}
           </h1>
           <div className="w-[60%] h-px bg-dose-orange mb-4" />
@@ -63,7 +69,7 @@ export default async function EditionPage({
         <div className="flex flex-col gap-20">
           {edition.themes.map((theme) => (
             <section key={theme.id} className="animate-fade-in">
-              <h2 className="text-[22px] font-serif text-dose-orange mb-8">
+              <h2 className="text-[22px] font-serif text-dose-orange mb-8 uppercase">
                 {theme.name}
               </h2>
 

@@ -34,7 +34,7 @@ export function DateGroup({ date, headline, insights, images }: DateGroupProps) 
       <div className="grid grid-cols-1 lg:grid-cols-[42fr_58fr] gap-10">
         {/* Left - Insights */}
         <div>
-          <h2 className="text-[26px] font-serif leading-snug text-foreground mb-2 text-balance">
+          <h2 className="text-[26px] font-serif leading-snug text-foreground mb-2 text-balance uppercase">
             {headline}
           </h2>
           <div className="w-[60%] h-px bg-dose-orange mb-6" />

@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Pencil, Trash2, Star } from "lucide-react"
+import { Pencil, Trash2, Star, Plus, X } from "lucide-react"
 import { MediaImage } from "@/components/media-image"
 import { cn } from "@/lib/utils"
 
@@ -53,6 +53,7 @@ type FormState = {
   hero_description: string
   hero_summary: string
   featured_meme_url: string
+  include_meme: boolean
   is_current: boolean
 }
 
@@ -61,17 +62,53 @@ const emptyForm: FormState = {
   hero_description: DEFAULT_HERO_DESCRIPTION,
   hero_summary: "",
   featured_meme_url: "",
+  include_meme: false,
   is_current: false,
 }
 
+type ThemeFormState = { theme_name: string; theme_write_up: string }
+const emptyThemeForm: ThemeFormState = { theme_name: "", theme_write_up: "" }
+
+type MediaRow = { url: string; caption: string }
+type ContentFormState = {
+  what_is_it: string
+  so_what: string
+  now_what: string
+  media_rows: MediaRow[]
+}
+const emptyContentForm: ContentFormState = {
+  what_is_it: "",
+  so_what: "",
+  now_what: "",
+  media_rows: [{ url: "", caption: "" }],
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "theme"
+}
+
+type CreateStep = 1 | 2 | 3
+
 export default function AdminEditionsPage() {
   const [editions, setEditions] = useState<Edition[]>([])
+  const [categories, setCategories] = useState<{ id: string; sort_order: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEdition, setEditingEdition] = useState<Edition | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [themeForm, setThemeForm] = useState<ThemeFormState>(emptyThemeForm)
+  const [contentForm, setContentForm] = useState<ContentFormState>(emptyContentForm)
+  const [createStep, setCreateStep] = useState<CreateStep>(1)
+  const [createdEditionId, setCreatedEditionId] = useState<string | null>(null)
+  const [createdThemeId, setCreatedThemeId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadingMediaRow, setUploadingMediaRow] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Edition | null>(null)
   const [setCurrentTarget, setSetCurrentTarget] = useState<Edition | null>(null)
   const [isCurrentConfirmOpen, setIsCurrentConfirmOpen] = useState(false)
@@ -91,10 +128,22 @@ export default function AdminEditionsPage() {
     setEditions(data ?? [])
   }, [supabase])
 
+  const fetchCategories = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, sort_order")
+      .order("sort_order", { ascending: true })
+    if (error) {
+      console.error(error)
+      return
+    }
+    setCategories(data ?? [])
+  }, [supabase])
+
   useEffect(() => {
     setLoading(true)
-    fetchEditions().finally(() => setLoading(false))
-  }, [fetchEditions])
+    Promise.all([fetchEditions(), fetchCategories()]).finally(() => setLoading(false))
+  }, [fetchEditions, fetchCategories])
 
   const openCreate = () => {
     setEditingEdition(null)
@@ -102,6 +151,11 @@ export default function AdminEditionsPage() {
       ...emptyForm,
       date: new Date().toISOString().slice(0, 10),
     })
+    setThemeForm(emptyThemeForm)
+    setContentForm(emptyContentForm)
+    setCreateStep(1)
+    setCreatedEditionId(null)
+    setCreatedThemeId(null)
     setModalOpen(true)
   }
 
@@ -112,6 +166,7 @@ export default function AdminEditionsPage() {
       hero_description: e.hero_description,
       hero_summary: e.hero_summary,
       featured_meme_url: e.featured_meme_url ?? "",
+      include_meme: !!e.featured_meme_url,
       is_current: e.is_current,
     })
     setModalOpen(true)
@@ -121,6 +176,11 @@ export default function AdminEditionsPage() {
     setModalOpen(false)
     setEditingEdition(null)
     setForm(emptyForm)
+    setThemeForm(emptyThemeForm)
+    setContentForm(emptyContentForm)
+    setCreateStep(1)
+    setCreatedEditionId(null)
+    setCreatedThemeId(null)
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,10 +190,7 @@ export default function AdminEditionsPage() {
     try {
       const formData = new FormData()
       formData.append("file", file)
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         alert(data.error ?? "Upload failed")
@@ -147,8 +204,153 @@ export default function AdminEditionsPage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleMediaRowUpload = async (e: React.ChangeEvent<HTMLInputElement>, rowIndex: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingMediaRow(rowIndex)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error ?? "Upload failed")
+        return
+      }
+      const { url } = await res.json()
+      setContentForm((f) => ({
+        ...f,
+        media_rows: f.media_rows.map((r, j) => (j === rowIndex ? { ...r, url } : r)),
+      }))
+    } finally {
+      setUploadingMediaRow(null)
+      e.target.value = ""
+    }
+  }
+
+  const handleSaveStep1 = async () => {
     if (!form.date || !form.hero_summary.trim() || !form.hero_description.trim()) {
+      alert("Date, Hero Description, and Hero Summary are required.")
+      return
+    }
+    setSaving(true)
+    try {
+      const payload = {
+        date: form.date,
+        hero_description: form.hero_description.trim(),
+        hero_summary: form.hero_summary.trim(),
+        featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
+        is_current: form.is_current,
+      }
+      const { data, error } = await supabase.from("editions").insert(payload).select("id").single()
+      if (error) throw error
+      if (data?.id && form.is_current) {
+        await supabase.from("editions").update({ is_current: false }).neq("id", data.id)
+      }
+      if (data?.id) {
+        setCreatedEditionId(data.id)
+        setCreateStep(2)
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to save edition")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveStep2 = async () => {
+    if (!createdEditionId || !themeForm.theme_name.trim()) {
+      alert("Theme name is required.")
+      return
+    }
+    setSaving(true)
+    try {
+      const slug = slugify(themeForm.theme_name)
+      const { data, error } = await supabase
+        .from("themes")
+        .insert({
+          edition_id: createdEditionId,
+          name: themeForm.theme_name.trim(),
+          slug,
+          description: themeForm.theme_write_up.trim() || null,
+          sort_order: 0,
+        })
+        .select("id")
+        .single()
+      if (error) throw error
+      if (data?.id) {
+        setCreatedThemeId(data.id)
+        setCreateStep(3)
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to save theme")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveStep3 = async () => {
+    if (!createdEditionId || !createdThemeId) return
+    const categoryId = categories[0]?.id
+    if (!categoryId) {
+      alert("No category found. Please add a category first.")
+      return
+    }
+    setSaving(true)
+    try {
+      const headline = themeForm.theme_name.trim() || "Content"
+      const { data: postData, error: postError } = await supabase
+        .from("posts")
+        .insert({
+          edition_id: createdEditionId,
+          theme_id: createdThemeId,
+          category_id: categoryId,
+          headline,
+        })
+        .select("id")
+        .single()
+      if (postError) throw postError
+      const postId = postData?.id
+      if (!postId) throw new Error("Post not created")
+
+      const insights = [
+        { label: "What is it", description: contentForm.what_is_it.trim(), sort_order: 0 },
+        { label: "So what", description: contentForm.so_what.trim(), sort_order: 1 },
+        { label: "Now what", description: contentForm.now_what.trim(), sort_order: 2 },
+      ].filter((i) => i.description)
+      if (insights.length) {
+        await supabase.from("post_insights").insert(
+          insights.map((i) => ({ post_id: postId, ...i }))
+        )
+      }
+
+      const mediaRows = contentForm.media_rows.filter((r) => r.url.trim())
+      if (mediaRows.length) {
+        await supabase.from("media_items").insert(
+          mediaRows.map((r, i) => ({
+            post_id: postId,
+            type: "image",
+            url: r.url.trim(),
+            caption: r.caption.trim() || null,
+            sort_order: i,
+          }))
+        )
+      }
+
+      closeModal()
+      await fetchEditions()
+    } catch (err) {
+      console.error(err)
+      alert("Failed to save content")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingEdition || !form.date || !form.hero_summary.trim() || !form.hero_description.trim()) {
       alert("Date, Hero Description, and Hero Summary are required.")
       return
     }
@@ -158,27 +360,17 @@ export default function AdminEditionsPage() {
         await supabase
           .from("editions")
           .update({ is_current: false })
-          .neq("id", editingEdition?.id ?? "")
+          .neq("id", editingEdition.id)
       }
-
       const payload = {
         date: form.date,
         hero_description: form.hero_description.trim(),
         hero_summary: form.hero_summary.trim(),
-        featured_meme_url: form.featured_meme_url.trim() || null,
+        featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
         is_current: form.is_current,
       }
-
-      if (editingEdition) {
-        const { error } = await supabase
-          .from("editions")
-          .update(payload)
-          .eq("id", editingEdition.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from("editions").insert(payload)
-        if (error) throw error
-      }
+      const { error } = await supabase.from("editions").update(payload).eq("id", editingEdition.id)
+      if (error) throw error
       closeModal()
       await fetchEditions()
     } catch (err) {
@@ -330,106 +522,326 @@ export default function AdminEditionsPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="max-w-lg bg-[#0a0a0a] border-[#222] text-gray-200">
+        <DialogContent className={cn("bg-[#0a0a0a] border-[#222] text-gray-200", createStep === 3 ? "max-w-2xl" : "max-w-lg")}>
           <DialogHeader>
             <DialogTitle className="text-white">
-              {editingEdition ? "Edit Edition" : "New Edition"}
+              {editingEdition
+                ? "Edit Edition"
+                : createStep === 1
+                  ? "New Edition"
+                  : createStep === 2
+                    ? "Add theme"
+                    : "Add content"}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                className="bg-[#111] border-[#333]"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="hero_description">Hero Description</Label>
-              <Textarea
-                id="hero_description"
-                value={form.hero_description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, hero_description: e.target.value }))
-                }
-                rows={4}
-                className="bg-[#111] border-[#333] resize-y"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="hero_summary">Hero Summary</Label>
-              <Textarea
-                id="hero_summary"
-                value={form.hero_summary}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, hero_summary: e.target.value }))
-                }
-                placeholder="This week, users are…"
-                rows={3}
-                className="bg-[#111] border-[#333] resize-y"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Featured Meme URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={form.featured_meme_url}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, featured_meme_url: e.target.value }))
-                  }
-                  placeholder="https://…"
-                  className="bg-[#111] border-[#333] flex-1"
-                />
-                <label
-                  className={cn(
-                    "inline-flex items-center justify-center h-10 px-4 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
-                    uploading && "opacity-50 pointer-events-none"
-                  )}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                  {uploading ? "Uploading…" : "Upload"}
-                </label>
-              </div>
-              {form.featured_meme_url && (
-                <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
-                  <MediaImage
-                    src={form.featured_meme_url}
-                    alt="Featured meme preview"
-                    className="h-full w-full object-cover"
+
+          {editingEdition ? (
+            <>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    className="bg-[#111] border-[#333]"
                   />
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="is_current"
-                checked={form.is_current}
-                onCheckedChange={handleIsCurrentChange}
-              />
-              <Label htmlFor="is_current">Set as Current Edition</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal} className="border-[#333]">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-dose-orange hover:bg-dose-orange/90"
-            >
-              {saving ? "Saving…" : "Save"}
-            </Button>
-          </DialogFooter>
+                <div className="grid gap-2">
+                  <Label htmlFor="hero_description">Hero Description</Label>
+                  <Textarea
+                    id="hero_description"
+                    value={form.hero_description}
+                    onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
+                    rows={4}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="hero_summary">Hero Summary</Label>
+                  <Textarea
+                    id="hero_summary"
+                    value={form.hero_summary}
+                    onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
+                    placeholder="This week, users are…"
+                    rows={3}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="include_meme_edit"
+                    checked={form.include_meme}
+                    onCheckedChange={(checked) => setForm((f) => ({ ...f, include_meme: checked }))}
+                  />
+                  <Label htmlFor="include_meme_edit">Include featured meme</Label>
+                </div>
+                {form.include_meme && (
+                  <div className="grid gap-2">
+                    <Label>Featured Meme URL</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.featured_meme_url}
+                        onChange={(e) => setForm((f) => ({ ...f, featured_meme_url: e.target.value }))}
+                        placeholder="https://…"
+                        className="bg-[#111] border-[#333] flex-1"
+                      />
+                      <label
+                        className={cn(
+                          "inline-flex items-center justify-center h-10 px-4 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
+                          uploading && "opacity-50 pointer-events-none"
+                        )}
+                      >
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                        {uploading ? "Uploading…" : "Upload"}
+                      </label>
+                    </div>
+                    {form.featured_meme_url && (
+                      <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
+                        <MediaImage src={form.featured_meme_url} alt="Featured meme" className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Switch id="is_current" checked={form.is_current} onCheckedChange={handleIsCurrentChange} />
+                  <Label htmlFor="is_current">Set as Current Edition</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
+                <Button onClick={handleSaveEdit} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : createStep === 1 ? (
+            <>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="date">Edition date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    className="bg-[#111] border-[#333]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="hero_description">Hero description</Label>
+                  <Textarea
+                    id="hero_description"
+                    value={form.hero_description}
+                    onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
+                    rows={4}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="hero_summary">Hero summary</Label>
+                  <Textarea
+                    id="hero_summary"
+                    value={form.hero_summary}
+                    onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
+                    placeholder="This week, users are…"
+                    rows={3}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="include_meme"
+                    checked={form.include_meme}
+                    onCheckedChange={(checked) => setForm((f) => ({ ...f, include_meme: checked }))}
+                  />
+                  <Label htmlFor="include_meme">Include featured meme</Label>
+                </div>
+                {form.include_meme && (
+                  <div className="grid gap-2">
+                    <Label>Meme URL</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.featured_meme_url}
+                        onChange={(e) => setForm((f) => ({ ...f, featured_meme_url: e.target.value }))}
+                        placeholder="https://… or upload"
+                        className="bg-[#111] border-[#333] flex-1"
+                      />
+                      <label
+                        className={cn(
+                          "inline-flex items-center justify-center h-10 px-4 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
+                          uploading && "opacity-50 pointer-events-none"
+                        )}
+                      >
+                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                        {uploading ? "Uploading…" : "Upload"}
+                      </label>
+                    </div>
+                    {form.featured_meme_url && (
+                      <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
+                        <MediaImage src={form.featured_meme_url} alt="Meme preview" className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Switch id="is_current" checked={form.is_current} onCheckedChange={handleIsCurrentChange} />
+                  <Label htmlFor="is_current">Set as Current Edition</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
+                <Button onClick={handleSaveStep1} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
+                  {saving ? "Saving…" : "Save & continue"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : createStep === 2 ? (
+            <>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="theme_name">Theme name</Label>
+                  <Input
+                    id="theme_name"
+                    value={themeForm.theme_name}
+                    onChange={(e) => setThemeForm((f) => ({ ...f, theme_name: e.target.value }))}
+                    placeholder="e.g. Audience & Culture"
+                    className="bg-[#111] border-[#333]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="theme_write_up">Write-up</Label>
+                  <Textarea
+                    id="theme_write_up"
+                    value={themeForm.theme_write_up}
+                    onChange={(e) => setThemeForm((f) => ({ ...f, theme_write_up: e.target.value }))}
+                    placeholder="Theme description or copy…"
+                    rows={4}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
+                <Button onClick={handleSaveStep2} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
+                  {saving ? "Saving…" : "Save & continue"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid gap-2">
+                  <Label htmlFor="what_is_it">What is it</Label>
+                  <Textarea
+                    id="what_is_it"
+                    value={contentForm.what_is_it}
+                    onChange={(e) => setContentForm((f) => ({ ...f, what_is_it: e.target.value }))}
+                    placeholder="Brief description…"
+                    rows={2}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="so_what">So what</Label>
+                  <Textarea
+                    id="so_what"
+                    value={contentForm.so_what}
+                    onChange={(e) => setContentForm((f) => ({ ...f, so_what: e.target.value }))}
+                    placeholder="Why it matters…"
+                    rows={2}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="now_what">Now what</Label>
+                  <Textarea
+                    id="now_what"
+                    value={contentForm.now_what}
+                    onChange={(e) => setContentForm((f) => ({ ...f, now_what: e.target.value }))}
+                    placeholder="Next steps or takeaway…"
+                    rows={2}
+                    className="bg-[#111] border-[#333] resize-y"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Media (link or upload + caption, one per line)</Label>
+                  {contentForm.media_rows.map((row, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <Input
+                        value={row.url}
+                        onChange={(e) =>
+                          setContentForm((f) => ({
+                            ...f,
+                            media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
+                          }))
+                        }
+                        placeholder="URL or use Upload"
+                        className="bg-[#111] border-[#333] flex-1"
+                      />
+                      <label
+                        className={cn(
+                          "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
+                          uploadingMediaRow === i && "opacity-50 pointer-events-none"
+                        )}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          className="hidden"
+                          onChange={(ev) => handleMediaRowUpload(ev, i)}
+                          disabled={uploadingMediaRow !== null}
+                        />
+                        {uploadingMediaRow === i ? "…" : "Upload"}
+                      </label>
+                      <Input
+                        value={row.caption}
+                        onChange={(e) =>
+                          setContentForm((f) => ({
+                            ...f,
+                            media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                          }))
+                        }
+                        placeholder="Caption"
+                        className="bg-[#111] border-[#333] w-28 shrink-0"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-400 hover:text-red-400 shrink-0"
+                        onClick={() =>
+                          setContentForm((f) => ({
+                            ...f,
+                            media_rows: f.media_rows.filter((_, j) => j !== i).length ? f.media_rows.filter((_, j) => j !== i) : [{ url: "", caption: "" }],
+                          }))
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit border-[#333] text-gray-400"
+                    onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "" }] }))}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add media
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
+                <Button onClick={handleSaveStep3} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

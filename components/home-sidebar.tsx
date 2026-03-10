@@ -8,13 +8,15 @@ interface HomeSidebarProps {
 }
 
 function getNavItems(currentEditionId: string | null) {
-  return [
+  const items: { label: string; href: string; sub?: boolean }[] = [
     {
       label: "Current edition",
       href: currentEditionId ? `/edition/${currentEditionId}` : "/archive",
     },
+    { label: "Articles", href: "/articles", sub: true },
     { label: "Archive", href: "/archive" },
   ]
+  return items
 }
 
 export function HomeSidebar({
@@ -60,7 +62,9 @@ export function HomeSidebar({
             {index > 0 && <div className="h-px bg-dose-gray-dark" />}
             <Link
               href={item.href}
-              className="block py-4 text-center text-[38px] font-serif italic text-foreground transition-colors duration-150 hover:text-dose-orange"
+              className={`block py-4 text-center font-serif italic text-foreground transition-colors duration-150 hover:text-dose-orange ${
+                item.sub ? "text-[24px] pl-4" : "text-[38px]"
+              }`}
             >
               {item.label}
             </Link>

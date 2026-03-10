@@ -5,10 +5,12 @@ import { AmazonAdsLogo } from "@/components/amazon-ads-logo"
 interface EditionLayoutProps {
   /** Edition date for nav subtitle */
   editionDate?: string
+  /** Current edition id so nav can show "Current edition" + "Articles" under it */
+  currentEditionId?: string | null
   children: ReactNode
 }
 
-export function EditionLayout({ editionDate, children }: EditionLayoutProps) {
+export function EditionLayout({ editionDate, currentEditionId, children }: EditionLayoutProps) {
   return (
     <div className="min-h-screen bg-dose-black text-foreground">
       <nav className="sticky top-0 z-50 bg-dose-black/95 backdrop-blur-sm border-b border-border">
@@ -26,6 +28,22 @@ export function EditionLayout({ editionDate, children }: EditionLayoutProps) {
             >
               Home
             </Link>
+            {currentEditionId && (
+              <div className="flex flex-col items-center gap-0.5">
+                <Link
+                  href={`/edition/${currentEditionId}`}
+                  className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium bg-dose-gray-light/90 text-dose-black hover:bg-dose-gray-light/70"
+                >
+                  Current edition
+                </Link>
+                <Link
+                  href="/articles"
+                  className="shrink-0 text-xs text-dose-gray-mid hover:text-dose-orange transition-colors"
+                >
+                  Articles
+                </Link>
+              </div>
+            )}
             <Link
               href="/archive"
               className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium bg-dose-gray-light/90 text-dose-black hover:bg-dose-gray-light/70"

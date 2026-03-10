@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { EditionLayout } from "@/components/edition-layout"
-import { getEditionsForArchive } from "@/lib/data"
+import { getEditionsForArchive, getCurrentEdition } from "@/lib/data"
 
 function formatEditionDate(dateStr: string): string {
   const d = new Date(dateStr)
@@ -12,10 +12,13 @@ function formatEditionDate(dateStr: string): string {
 }
 
 export default async function ArchivePage() {
-  const editions = await getEditionsForArchive()
+  const [editions, currentEdition] = await Promise.all([
+    getEditionsForArchive(),
+    getCurrentEdition(),
+  ])
 
   return (
-    <EditionLayout>
+    <EditionLayout currentEditionId={currentEdition?.id ?? null}>
       <div className="animate-fade-in">
         <h1 className="text-[28px] font-serif text-foreground mb-2">
           Archive

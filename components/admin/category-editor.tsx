@@ -6,6 +6,7 @@ import type {
   Category,
   Edition,
   PostWithRelations,
+  Theme,
 } from "@/lib/types"
 import {
   Table,
@@ -70,9 +71,13 @@ export function CategoryEditor({
 
   // Add post form
   const [newEditionId, setNewEditionId] = useState("")
+  const [newThemeId, setNewThemeId] = useState("")
+  const [themesForNewEdition, setThemesForNewEdition] = useState<Theme[]>([])
   const [newHeadline, setNewHeadline] = useState("")
 
   // Edit form
+  const [themeId, setThemeId] = useState("")
+  const [themesForEdition, setThemesForEdition] = useState<Theme[]>([])
   const [headline, setHeadline] = useState("")
   const [insights, setInsights] = useState<{ label: string; description: string; sort_order: number }[]>([])
   const [mediaItems, setMediaItems] = useState<
@@ -124,6 +129,7 @@ export function CategoryEditor({
           id: rest.id,
           edition_id: rest.edition_id,
           category_id: rest.category_id,
+          theme_id: rest.theme_id ?? null,
           headline: rest.headline,
           created_at: rest.created_at,
           post_insights: rest.post_insights ?? [],
@@ -156,8 +162,41 @@ export function CategoryEditor({
     load()
   }, [load])
 
+  // Fetch themes for the edition when editing a post
+  useEffect(() => {
+    if (!editPost?.edition_id) {
+      setThemesForEdition([])
+      return
+    }
+    supabase
+      .from("themes")
+      .select("*")
+      .eq("edition_id", editPost.edition_id)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => setThemesForEdition((data as Theme[]) ?? []))
+  }, [editPost?.edition_id, supabase])
+
+  // Fetch themes when edition changes in Add form
+  useEffect(() => {
+    if (!newEditionId) {
+      setThemesForNewEdition([])
+      setNewThemeId("")
+      return
+    }
+    supabase
+      .from("themes")
+      .select("*")
+      .eq("edition_id", newEditionId)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        setThemesForNewEdition((data as Theme[]) ?? [])
+        setNewThemeId((data as Theme[])?.[0]?.id ?? "")
+      })
+  }, [newEditionId, supabase])
+
   const openAdd = () => {
     setNewEditionId(editions[0]?.id ?? "")
+    setNewThemeId("")
     setNewHeadline("")
     setAddOpen(true)
   }
@@ -167,11 +206,16 @@ export function CategoryEditor({
       alert("Select an edition and enter a headline.")
       return
     }
+    if (!newThemeId.trim()) {
+      alert("Select a theme.")
+      return
+    }
     setSaving(true)
     try {
       const { error } = await supabase.from("posts").insert({
         edition_id: newEditionId,
         category_id: category.id,
+        theme_id: newThemeId.trim(),
         headline: newHeadline.trim(),
       })
       if (error) throw error
@@ -187,6 +231,7 @@ export function CategoryEditor({
 
   const openEdit = (post: PostWithRelations) => {
     setEditPost(post)
+    setThemeId(post.theme_id ?? "")
     setHeadline(post.headline)
     setInsights(
       [...post.post_insights]
@@ -351,7 +396,10 @@ export function CategoryEditor({
     try {
       await supabase
         .from("posts")
-        .update({ headline: headline.trim() })
+        .update({
+          headline: headline.trim(),
+          theme_id: themeId.trim() || null,
+        })
         .eq("id", editPost.id)
 
       let err = await supabase.from("post_insights").delete().eq("post_id", editPost.id).then((r) => r.error)
@@ -538,6 +586,21 @@ export function CategoryEditor({
               </Select>
             </div>
             <div className="grid gap-2">
+              <Label>Theme</Label>
+              <Select value={newThemeId} onValueChange={setNewThemeId}>
+                <SelectTrigger className="bg-[#111] border-[#333]">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {themesForNewEdition.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
               <Label>Headline</Label>
               <Input
                 value={newHeadline}
@@ -566,10 +629,29 @@ export function CategoryEditor({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
+              <Label>Theme</Label>
+              <Select
+                value={themeId}
+                onValueChange={setThemeId}
+              >
+                <SelectTrigger className="bg-[#111] border-[#333]">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {themesForEdition.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
               <Label>Headline</Label>
               <Input
                 value={headline}
                 onChange={(e) => setHeadline(e.target.value)}
+                placeholder="Post headline"
                 className="bg-[#111] border-[#333]"
               />
             </div>
