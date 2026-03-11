@@ -8,7 +8,8 @@ export type EditionComment = {
   user_id: string
   body: string
   created_at: string
-  user_email?: string | null
+  author_name?: string | null
+  author_avatar_url?: string | null
 }
 
 export async function getEditionLikes(editionId: string): Promise<{
@@ -77,7 +78,7 @@ export async function getEditionComments(editionId: string): Promise<EditionComm
 
   const { data, error } = await supabase
     .from("edition_comments")
-    .select("id, edition_id, user_id, body, created_at")
+    .select("id, edition_id, user_id, body, created_at, author_name, author_avatar_url")
     .eq("edition_id", editionId)
     .order("created_at", { ascending: true })
 
@@ -89,6 +90,8 @@ export async function getEditionComments(editionId: string): Promise<EditionComm
     user_id: row.user_id,
     body: row.body,
     created_at: row.created_at,
+    author_name: row.author_name ?? null,
+    author_avatar_url: row.author_avatar_url ?? null,
   }))
 }
 
@@ -103,10 +106,26 @@ export async function addEditionComment(
   const trimmed = body.trim()
   if (!trimmed) return { ok: false, error: "Comment cannot be empty." }
 
+  const authorName =
+    (user.user_metadata?.full_name as string) ||
+    (user.user_metadata?.name as string) ||
+    user.email?.split("@")[0] ||
+    null
+  const authorAvatarUrl =
+    (user.user_metadata?.avatar_url as string) ||
+    (user.user_metadata?.picture as string) ||
+    null
+
   const { data, error } = await supabase
     .from("edition_comments")
-    .insert({ edition_id: editionId, user_id: user.id, body: trimmed })
-    .select("id, edition_id, user_id, body, created_at")
+    .insert({
+      edition_id: editionId,
+      user_id: user.id,
+      body: trimmed,
+      author_name: authorName,
+      author_avatar_url: authorAvatarUrl,
+    })
+    .select("id, edition_id, user_id, body, created_at, author_name, author_avatar_url")
     .single()
 
   if (error) return { ok: false, error: error.message }
@@ -119,6 +138,8 @@ export async function addEditionComment(
       user_id: data.user_id,
       body: data.body,
       created_at: data.created_at,
+      author_name: data.author_name ?? null,
+      author_avatar_url: data.author_avatar_url ?? null,
     },
   }
 }

@@ -85,7 +85,7 @@ export function EditionLikesComments({
 
   const handleDeleteComment = (commentId: string) => {
     if (!user) return
-    startTransition(async () => {
+    startLikeTransition(async () => {
       const result = await deleteEditionComment(commentId)
       if (result.ok) {
         setState((s) => ({
@@ -175,6 +175,22 @@ export function EditionLikesComments({
               key={c.id}
               className="py-3 px-4 rounded-lg bg-[#111] border border-[#222]"
             >
+              <div className="flex items-center gap-3 mb-2">
+                {c.author_avatar_url ? (
+                  <img
+                    src={c.author_avatar_url}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-dose-orange/20 flex items-center justify-center text-dose-orange text-sm font-medium shrink-0">
+                    {(c.author_name ?? (c.user_id === user.id ? user.email : null))?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-200">
+                  {c.author_name || "Anonymous"}
+                </span>
+              </div>
               <p className="text-sm text-dose-gray-light whitespace-pre-wrap">
                 {c.body}
               </p>
