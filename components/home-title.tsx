@@ -1,6 +1,6 @@
 export function HomeTitle() {
   return (
-    <div className="select-none animate-fade-in">
+    <div className="select-none animate-fade-in pt-12 md:pt-16 lg:pt-20">
       {/* "The" */}
       <p className="text-[44px] font-serif italic text-dose-orange leading-none mb-1">
         The

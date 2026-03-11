@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
-import type { EditionComment } from "@/lib/edition-engagement"
+import type { EditionComment, EditionLiker } from "@/lib/edition-engagement"
 import {
   toggleEditionLike,
   addEditionComment,
@@ -18,6 +18,7 @@ import { Heart, MessageCircle, LogOut } from "lucide-react"
 type InitialState = {
   likeCount: number
   userLiked: boolean
+  likers: EditionLiker[]
   comments: EditionComment[]
 }
 
@@ -31,7 +32,7 @@ export function EditionLikesComments({
   initial: InitialState | null
 }) {
   const [state, setState] = useState<InitialState>(
-    initial ?? { likeCount: 0, userLiked: false, comments: [] }
+    initial ?? { likeCount: 0, userLiked: false, likers: [], comments: [] }
   )
   const [commentBody, setCommentBody] = useState("")
   const [commentPending, setCommentPending] = useState(false)
@@ -55,6 +56,7 @@ export function EditionLikesComments({
           ...s,
           likeCount: result.count,
           userLiked: result.userLiked,
+          likers: result.likers,
         }))
       }
     })
@@ -114,20 +116,46 @@ export function EditionLikesComments({
   return (
     <section className="mt-16 pt-10 border-t border-[#333]">
       <div className="flex items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-8">
+        <div className="flex flex-col gap-2">
           <button
-          type="button"
-          onClick={handleLike}
-          disabled={pending}
-          className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-            state.userLiked ? "text-dose-orange" : "text-gray-400 hover:text-dose-orange"
-          }`}
-        >
-          <Heart
-            className={`h-5 w-5 ${state.userLiked ? "fill-current" : ""}`}
-          />
-          <span>{state.likeCount} like{state.likeCount !== 1 ? "s" : ""}</span>
-        </button>
+            type="button"
+            onClick={handleLike}
+            disabled={pending}
+            className={`flex items-center gap-2 text-sm font-medium transition-colors w-fit ${
+              state.userLiked ? "text-dose-orange" : "text-gray-400 hover:text-dose-orange"
+            }`}
+          >
+            <Heart
+              className={`h-5 w-5 ${state.userLiked ? "fill-current" : ""}`}
+            />
+            <span>{state.likeCount} like{state.likeCount !== 1 ? "s" : ""}</span>
+          </button>
+          {state.likers.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex -space-x-2">
+                {state.likers.slice(0, 8).map((l) => (
+                  <div key={l.user_id} className="relative group" title={l.liker_name || "Someone"}>
+                    {l.liker_avatar_url ? (
+                      <img
+                        src={l.liker_avatar_url}
+                        alt=""
+                        className="h-7 w-7 rounded-full object-cover border-2 border-[#111]"
+                      />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full border-2 border-[#111] bg-dose-orange/20 flex items-center justify-center text-dose-orange text-xs font-medium">
+                        {(l.liker_name ?? "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <span className="text-xs text-gray-500">
+                {state.likers.length <= 3
+                  ? state.likers.map((l) => l.liker_name || "Someone").join(", ")
+                  : `${state.likers.slice(0, 2).map((l) => l.liker_name || "Someone").join(", ")} and ${state.likers.length - 2} others`}
+              </span>
+            </div>
+          )}
         </div>
         <button
           type="button"

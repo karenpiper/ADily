@@ -12,32 +12,36 @@ export type EditionComment = {
   author_avatar_url?: string | null
 }
 
+export type EditionLiker = {
+  user_id: string
+  liker_name?: string | null
+  liker_avatar_url?: string | null
+}
+
 export async function getEditionLikes(editionId: string): Promise<{
   count: number
   userLiked: boolean
+  likers: EditionLiker[]
 }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { count, error: countError } = await supabase
+  const { data: rows, error } = await supabase
     .from("edition_likes")
-    .select("*", { count: "exact", head: true })
+    .select("user_id, liker_name, liker_avatar_url")
     .eq("edition_id", editionId)
 
-  if (countError) return { count: 0, userLiked: false }
+  if (error) return { count: 0, userLiked: false, likers: [] }
 
-  let userLiked = false
-  if (user) {
-    const { data: like } = await supabase
-      .from("edition_likes")
-      .select("edition_id")
-      .eq("edition_id", editionId)
-      .eq("user_id", user.id)
-      .maybeSingle()
-    userLiked = !!like
-  }
+  const likers: EditionLiker[] = (rows ?? []).map((r) => ({
+    user_id: r.user_id,
+    liker_name: r.liker_name ?? null,
+    liker_avatar_url: r.liker_avatar_url ?? null,
+  }))
+  const count = likers.length
+  const userLiked = user ? likers.some((l) => l.user_id === user.id) : false
 
-  return { count: count ?? 0, userLiked }
+  return { count, userLiked, likers }
 }
 
 export async function toggleEditionLike(editionId: string): Promise<
@@ -62,9 +66,20 @@ export async function toggleEditionLike(editionId: string): Promise<
       .eq("edition_id", editionId)
       .eq("user_id", user.id)
   } else {
+    const likerName =
+      (user.user_metadata?.full_name as string) ||
+      (user.user_metadata?.name as string) ||
+      user.email?.split("@")[0] ||
+      null
+    const likerAvatarUrl =
+      (user.user_metadata?.avatar_url as string) ||
+      (user.user_metadata?.picture as string) ||
+      null
     await supabase.from("edition_likes").insert({
       edition_id: editionId,
       user_id: user.id,
+      liker_name: likerName,
+      liker_avatar_url: likerAvatarUrl,
     })
   }
 

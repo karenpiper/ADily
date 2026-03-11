@@ -62,6 +62,7 @@ export default async function EditionPage({
       ? {
           likeCount: initialLikes.count,
           userLiked: initialLikes.userLiked,
+          likers: initialLikes.likers,
           comments: initialComments,
         }
       : null
