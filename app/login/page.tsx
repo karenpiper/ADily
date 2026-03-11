@@ -1,8 +1,8 @@
 "use client"
 
+import { Suspense, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 
 function GoogleIcon() {
   return (
@@ -15,8 +15,7 @@ function GoogleIcon() {
   )
 }
 
-export default function LoginPage() {
-  const router = useRouter()
+function LoginForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get("next") ?? "/"
 
@@ -31,31 +30,47 @@ export default function LoginPage() {
   }, [next])
 
   return (
+    <div className="bg-[#111] rounded-lg border border-[#222] p-10 shadow-xl">
+      <h1 className="text-2xl font-serif text-white text-center mb-2">
+        Sign in
+      </h1>
+      <p className="text-gray-400 text-sm text-center mb-8">
+        Sign in with Google to like and comment on editions.
+      </p>
+
+      <button
+        type="button"
+        onClick={handleSignIn}
+        className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-[#1f1f1f] font-medium hover:bg-gray-100 transition-colors"
+      >
+        <GoogleIcon />
+        Sign in with Google
+      </button>
+
+      {searchParams.get("error") === "auth_failed" && (
+        <p className="mt-4 text-center text-sm text-amber-400">
+          Sign-in failed. Please try again.
+        </p>
+      )}
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-dose-black">
       <div className="w-full max-w-[400px]">
-        <div className="bg-[#111] rounded-lg border border-[#222] p-10 shadow-xl">
-          <h1 className="text-2xl font-serif text-white text-center mb-2">
-            Sign in
-          </h1>
-          <p className="text-gray-400 text-sm text-center mb-8">
-            Sign in with Google to like and comment on editions.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleSignIn}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white text-[#1f1f1f] font-medium hover:bg-gray-100 transition-colors"
-          >
-            <GoogleIcon />
-            Sign in with Google
-          </button>
-
-          {searchParams.get("error") === "auth_failed" && (
-            <p className="mt-4 text-center text-sm text-amber-400">
-              Sign-in failed. Please try again.
-            </p>
-          )}
-        </div>
+        <Suspense
+          fallback={
+            <div className="bg-[#111] rounded-lg border border-[#222] p-10 shadow-xl animate-pulse">
+              <div className="h-8 bg-gray-700 rounded w-24 mx-auto mb-2" />
+              <div className="h-4 bg-gray-700 rounded w-full mb-8" />
+              <div className="h-12 bg-gray-700 rounded w-full" />
+            </div>
+          }
+        >
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   )
