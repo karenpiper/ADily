@@ -14,6 +14,7 @@ interface GridImage {
   url?: string
   thumbnailUrl?: string
   externalLink?: string
+  caption?: string
 }
 
 interface DateGroupProps {

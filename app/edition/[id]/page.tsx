@@ -3,7 +3,10 @@ import { EditionLayout } from "@/components/edition-layout"
 import { DateGroup } from "@/components/date-group"
 import { ArticleCard } from "@/components/article-card"
 import { ImageGrid } from "@/components/image-grid"
+import { EditionLikesComments } from "@/components/edition-likes-comments"
 import { getEditionWithThemes, getCurrentEdition } from "@/lib/data"
+import { getEditionLikes, getEditionComments } from "@/lib/edition-engagement"
+import { createClient } from "@/lib/supabase/server"
 import type { MediaItem, Article } from "@/lib/types"
 
 function formatEditionDate(dateStr: string): string {
@@ -21,6 +24,7 @@ function mediaToGridImage(m: MediaItem, index: number) {
     thumbnailUrl: m.thumbnail_url ?? undefined,
     isVideo: m.type === "video",
     externalLink: m.external_link ?? undefined,
+    caption: m.caption ?? undefined,
     colSpan: index === 0 ? 3 : 2,
     rowSpan: 1,
     aspectRatio: index === 0 ? "16/9" : "4/3",
@@ -39,14 +43,28 @@ export default async function EditionPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [edition, currentEdition] = await Promise.all([
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [edition, currentEdition, initialLikes, initialComments] = await Promise.all([
     getEditionWithThemes(id),
     getCurrentEdition(),
+    user ? getEditionLikes(id) : Promise.resolve(null),
+    user ? getEditionComments(id) : Promise.resolve(null),
   ])
   if (!edition) notFound()
 
   const dateLabel = formatEditionDate(edition.date)
   const theme = edition.themes[0] ?? null
+
+  const engagementInitial =
+    user && initialLikes !== null && initialComments !== null
+      ? {
+          likeCount: initialLikes.count,
+          userLiked: initialLikes.userLiked,
+          comments: initialComments,
+        }
+      : null
 
   return (
     <EditionLayout
@@ -104,6 +122,12 @@ export default async function EditionPage({
             )}
           </section>
         )}
+
+        <EditionLikesComments
+          editionId={edition.id}
+          user={user}
+          initial={engagementInitial}
+        />
       </div>
     </EditionLayout>
   )

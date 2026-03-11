@@ -14,6 +14,8 @@ export interface GridImage {
   thumbnailUrl?: string
   /** When set to a TikTok or Instagram URL, the post embed is shown instead of the thumbnail */
   externalLink?: string
+  /** Shown on hover when present */
+  caption?: string
 }
 
 export function ImageGrid({ images }: { images: GridImage[] }) {
@@ -30,6 +32,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const embedUrl = image.externalLink ? getSocialEmbedUrl(image.externalLink) : null
+  const hasLink = !!image.externalLink?.trim()
 
   useEffect(() => {
     const el = ref.current
@@ -70,7 +73,7 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     ) : (
       <MediaImage
         src={image.url}
-        alt={image.thumbnailUrl ?? "Media"}
+        alt={image.caption ?? "Media"}
         className="w-full h-auto block"
       />
     )
@@ -80,18 +83,47 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
     </div>
   )
 
+  const wrappedContent = hasLink && !embedUrl ? (
+    <a
+      href={image.externalLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-dose-orange focus:ring-offset-2 focus:ring-offset-dose-black rounded overflow-hidden"
+    >
+      {mediaContent}
+    </a>
+  ) : mediaContent
+
   return (
     <div
       ref={ref}
-      className="relative w-full"
+      className="group relative w-full rounded overflow-hidden"
       style={{ animationDelay: `${index * 100}ms` }}
     >
       <div
         className={`w-full ${visible ? "grid-item-animate" : "opacity-0"}`}
         style={{ animationDelay: `${index * 100}ms` }}
       >
-        {mediaContent}
+        {wrappedContent}
       </div>
+      {hasLink && embedUrl && (
+        <a
+          href={image.externalLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-2 right-2 px-3 py-1.5 rounded text-xs font-medium bg-black/70 text-white hover:bg-dose-orange transition-colors z-10"
+        >
+          Open in new tab
+        </a>
+      )}
+      {image.caption?.trim() && (
+        <div
+          className="absolute inset-x-0 bottom-0 px-3 py-2 bg-black/75 text-white text-sm leading-snug opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+          aria-hidden
+        >
+          {image.caption.trim()}
+        </div>
+      )}
       {image.isVideo && !embedUrl && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-foreground/80">

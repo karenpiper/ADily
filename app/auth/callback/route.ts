@@ -43,16 +43,23 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
-      if (await isAllowedAdmin(data.user.email)) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else {
+      const isAdminPath = next === "/admin" || next.startsWith("/admin/")
+      if (isAdminPath) {
+        if (await isAllowedAdmin(data.user.email)) {
+          return NextResponse.redirect(`${origin}${next}`)
+        }
         await supabase.auth.signOut()
         return NextResponse.redirect(
           `${origin}/admin/login?error=unauthorized`
         )
       }
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/admin/login?error=auth_failed`)
+  const isAdminPath = (next === "/admin" || next.startsWith("/admin/"))
+  if (isAdminPath) {
+    return NextResponse.redirect(`${origin}/admin/login?error=auth_failed`)
+  }
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }

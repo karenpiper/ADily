@@ -1,6 +1,6 @@
-import { CategoryLayout } from "@/components/category-layout"
+import { EditionLayout } from "@/components/edition-layout"
 import { ArticleCard } from "@/components/article-card"
-import { getPostsByCategory, getCategoryBySlug } from "@/lib/data"
+import { getPostsByCategory, getCategoryBySlug, getCurrentEdition } from "@/lib/data"
 import type { Article } from "@/lib/types"
 
 function formatCategoryDate(dateStr: string): string {
@@ -25,9 +25,10 @@ function articleToCardImage(a: Article) {
 }
 
 export default async function ArticlesPage() {
-  const [categoryData, category] = await Promise.all([
+  const [categoryData, category, currentEdition] = await Promise.all([
     getPostsByCategory("articles"),
     getCategoryBySlug("articles"),
+    getCurrentEdition(),
   ])
 
   const description =
@@ -46,8 +47,9 @@ export default async function ArticlesPage() {
   )
 
   return (
-    <CategoryLayout activeCategory="articles" description={description}>
+    <EditionLayout currentEditionId={currentEdition?.id ?? null}>
       <div className="animate-fade-in">
+        <p className="text-dose-gray-mid text-sm max-w-2xl mb-10">{description}</p>
         {postSections.length === 0 ? (
           <p className="text-dose-cream font-serif text-lg">
             No content yet
@@ -107,6 +109,6 @@ export default async function ArticlesPage() {
           ))
         )}
       </div>
-    </CategoryLayout>
+    </EditionLayout>
   )
 }
