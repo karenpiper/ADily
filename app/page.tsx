@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { AmazonAdsLogo } from "@/components/amazon-ads-logo"
+import { MainNav } from "@/components/main-nav"
 import { HomeTitle } from "@/components/home-title"
 import { StickyNote } from "@/components/sticky-note"
 import { HomeSidebar } from "@/components/home-sidebar"
@@ -20,8 +21,9 @@ export default async function HomePage() {
     <div className="relative min-h-screen bg-dose-black">
       {/* Top bar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-dose-black">
-        <div className="px-6 py-4">
+        <div className="mx-auto flex items-center justify-between px-6 py-4 max-w-[1400px]">
           <AmazonAdsLogo />
+          <MainNav currentEditionId={edition?.id ?? null} />
         </div>
         {/* Orange gradient line */}
         <div

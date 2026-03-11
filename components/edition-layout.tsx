@@ -1,11 +1,12 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { AmazonAdsLogo } from "@/components/amazon-ads-logo"
+import { MainNav } from "@/components/main-nav"
 
 interface EditionLayoutProps {
-  /** Edition date for nav subtitle */
+  /** Edition date for nav subtitle (optional, e.g. for edition page) */
   editionDate?: string
-  /** Current edition id so nav can show "Current edition" + "Articles" under it */
+  /** Current edition id for nav links */
   currentEditionId?: string | null
   children: ReactNode
 }
@@ -18,39 +19,7 @@ export function EditionLayout({ editionDate, currentEditionId, children }: Editi
           <Link href="/" className="shrink-0">
             <AmazonAdsLogo />
           </Link>
-          <p className="hidden md:block flex-1 text-center text-[13px] italic text-dose-orange font-serif px-6 max-w-xl">
-            {editionDate ? `Edition · ${editionDate}` : "Edition"}
-          </p>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium bg-dose-gray-light/90 text-dose-black hover:bg-dose-gray-light/70"
-            >
-              Home
-            </Link>
-            {currentEditionId && (
-              <div className="flex flex-col items-center gap-0.5">
-                <Link
-                  href={`/edition/${currentEditionId}`}
-                  className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium bg-dose-gray-light/90 text-dose-black hover:bg-dose-gray-light/70"
-                >
-                  Current edition
-                </Link>
-                <Link
-                  href="/articles"
-                  className="shrink-0 text-xs text-dose-gray-mid hover:text-dose-orange transition-colors"
-                >
-                  Articles
-                </Link>
-              </div>
-            )}
-            <Link
-              href="/archive"
-              className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium bg-dose-gray-light/90 text-dose-black hover:bg-dose-gray-light/70"
-            >
-              Archive
-            </Link>
-          </div>
+          <MainNav currentEditionId={currentEditionId ?? null} />
         </div>
       </nav>
       <main className="relative z-10 mx-auto max-w-[1400px] px-6 py-12">
