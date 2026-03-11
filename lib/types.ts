@@ -99,7 +99,7 @@ export interface ThemeWithPosts extends Theme {
   posts: PostWithRelations[]
 }
 
-/** Edition with 3 themes, each with posts (for edition page) */
+/** Edition with its theme(s), each with posts (for edition page). One theme per edition in the new flow. */
 export interface EditionWithThemes extends Edition {
   themes: ThemeWithPosts[]
 }

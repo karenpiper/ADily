@@ -50,6 +50,8 @@ function truncate(s: string, len: number): string {
 
 type FormState = {
   date: string
+  edition_name: string
+  edition_write_up: string
   hero_description: string
   hero_summary: string
   featured_meme_url: string
@@ -59,15 +61,14 @@ type FormState = {
 
 const emptyForm: FormState = {
   date: "",
+  edition_name: "",
+  edition_write_up: "",
   hero_description: DEFAULT_HERO_DESCRIPTION,
   hero_summary: "",
   featured_meme_url: "",
   include_meme: false,
   is_current: false,
 }
-
-type ThemeFormState = { theme_name: string; theme_write_up: string }
-const emptyThemeForm: ThemeFormState = { theme_name: "", theme_write_up: "" }
 
 type MediaRow = { url: string; caption: string }
 type ContentFormState = {
@@ -101,11 +102,14 @@ export default function AdminEditionsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEdition, setEditingEdition] = useState<Edition | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
-  const [themeForm, setThemeForm] = useState<ThemeFormState>(emptyThemeForm)
   const [contentForm, setContentForm] = useState<ContentFormState>(emptyContentForm)
   const [createStep, setCreateStep] = useState<CreateStep>(1)
   const [createdEditionId, setCreatedEditionId] = useState<string | null>(null)
   const [createdThemeId, setCreatedThemeId] = useState<string | null>(null)
+  const [createdThemeName, setCreatedThemeName] = useState<string>("")
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
+  const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingMediaRow, setUploadingMediaRow] = useState<number | null>(null)
@@ -151,36 +155,92 @@ export default function AdminEditionsPage() {
       ...emptyForm,
       date: new Date().toISOString().slice(0, 10),
     })
-    setThemeForm(emptyThemeForm)
     setContentForm(emptyContentForm)
     setCreateStep(1)
     setCreatedEditionId(null)
     setCreatedThemeId(null)
+    setCreatedThemeName("")
     setModalOpen(true)
   }
 
-  const openEdit = (e: Edition) => {
+  const openEdit = async (e: Edition) => {
     setEditingEdition(e)
     setForm({
       date: e.date,
+      edition_name: "",
+      edition_write_up: "",
       hero_description: e.hero_description,
       hero_summary: e.hero_summary,
       featured_meme_url: e.featured_meme_url ?? "",
       include_meme: !!e.featured_meme_url,
       is_current: e.is_current,
     })
+    setContentForm(emptyContentForm)
+    setEditingThemeId(null)
+    setEditingPostId(null)
     setModalOpen(true)
+    setEditLoading(true)
+    try {
+      const { data: themes } = await supabase
+        .from("themes")
+        .select("id, name, description")
+        .eq("edition_id", e.id)
+        .order("sort_order", { ascending: true })
+        .limit(1)
+      const theme = themes?.[0] ?? null
+      if (theme) {
+        setForm((f) => ({
+          ...f,
+          edition_name: theme.name,
+          edition_write_up: theme.description ?? "",
+        }))
+        setEditingThemeId(theme.id)
+        const { data: posts } = await supabase
+          .from("posts")
+          .select("id, post_insights(label, description, sort_order), media_items(url, caption, sort_order)")
+          .eq("theme_id", theme.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+        const post = posts?.[0] as {
+          id: string
+          post_insights: { label: string; description: string; sort_order: number }[]
+          media_items: { url: string; caption: string | null; sort_order: number }[]
+        } | undefined
+        if (post) {
+          setEditingPostId(post.id)
+          const insights = (post.post_insights ?? []).sort((a, b) => a.sort_order - b.sort_order)
+          const whatIsIt = insights.find((i) => i.label === "What is it")?.description ?? ""
+          const soWhat = insights.find((i) => i.label === "So what")?.description ?? ""
+          const nowWhat = insights.find((i) => i.label === "Now what")?.description ?? ""
+          const mediaRows = (post.media_items ?? [])
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((m) => ({ url: m.url, caption: m.caption ?? "" }))
+          setContentForm({
+            what_is_it: whatIsIt,
+            so_what: soWhat,
+            now_what: nowWhat,
+            media_rows: mediaRows.length ? mediaRows : [{ url: "", caption: "" }],
+          })
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   const closeModal = () => {
     setModalOpen(false)
     setEditingEdition(null)
     setForm(emptyForm)
-    setThemeForm(emptyThemeForm)
     setContentForm(emptyContentForm)
     setCreateStep(1)
     setCreatedEditionId(null)
     setCreatedThemeId(null)
+    setCreatedThemeName("")
+    setEditingThemeId(null)
+    setEditingPostId(null)
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,63 +289,54 @@ export default function AdminEditionsPage() {
   }
 
   const handleSaveStep1 = async () => {
-    if (!form.date || !form.hero_summary.trim() || !form.hero_description.trim()) {
-      alert("Date, Hero Description, and Hero Summary are required.")
+    if (!form.date || !form.edition_name.trim() || !form.hero_summary.trim() || !form.hero_description.trim()) {
+      alert("Date, Edition name, Hero Description, and Hero Summary are required.")
       return
     }
     setSaving(true)
     try {
-      const payload = {
+      const editionPayload = {
         date: form.date,
         hero_description: form.hero_description.trim(),
         hero_summary: form.hero_summary.trim(),
         featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
         is_current: form.is_current,
       }
-      const { data, error } = await supabase.from("editions").insert(payload).select("id").single()
-      if (error) throw error
-      if (data?.id && form.is_current) {
-        await supabase.from("editions").update({ is_current: false }).neq("id", data.id)
-      }
-      if (data?.id) {
-        setCreatedEditionId(data.id)
-        setCreateStep(2)
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Failed to save edition")
-    } finally {
-      setSaving(false)
-    }
-  }
+      const { data: editionData, error: edError } = await supabase
+        .from("editions")
+        .insert(editionPayload)
+        .select("id")
+        .single()
+      if (edError) throw edError
+      const editionId = editionData?.id
+      if (!editionId) throw new Error("Edition not created")
 
-  const handleSaveStep2 = async () => {
-    if (!createdEditionId || !themeForm.theme_name.trim()) {
-      alert("Theme name is required.")
-      return
-    }
-    setSaving(true)
-    try {
-      const slug = slugify(themeForm.theme_name)
-      const { data, error } = await supabase
+      if (form.is_current) {
+        await supabase.from("editions").update({ is_current: false }).neq("id", editionId)
+      }
+
+      const themeName = form.edition_name.trim()
+      const slug = slugify(themeName)
+      const { data: themeData, error: thError } = await supabase
         .from("themes")
         .insert({
-          edition_id: createdEditionId,
-          name: themeForm.theme_name.trim(),
+          edition_id: editionId,
+          name: themeName,
           slug,
-          description: themeForm.theme_write_up.trim() || null,
+          description: form.edition_write_up.trim() || null,
           sort_order: 0,
         })
         .select("id")
         .single()
-      if (error) throw error
-      if (data?.id) {
-        setCreatedThemeId(data.id)
-        setCreateStep(3)
-      }
+      if (thError) throw thError
+
+      setCreatedEditionId(editionId)
+      setCreatedThemeId(themeData?.id ?? null)
+      setCreatedThemeName(themeName)
+      setCreateStep(3)
     } catch (err) {
       console.error(err)
-      alert("Failed to save theme")
+      alert("Failed to save edition")
     } finally {
       setSaving(false)
     }
@@ -300,7 +351,7 @@ export default function AdminEditionsPage() {
     }
     setSaving(true)
     try {
-      const headline = themeForm.theme_name.trim() || "Content"
+      const headline = createdThemeName.trim() || "Content"
       const { data: postData, error: postError } = await supabase
         .from("posts")
         .insert({
@@ -357,20 +408,109 @@ export default function AdminEditionsPage() {
     setSaving(true)
     try {
       if (form.is_current) {
-        await supabase
-          .from("editions")
-          .update({ is_current: false })
-          .neq("id", editingEdition.id)
+        await supabase.from("editions").update({ is_current: false }).neq("id", editingEdition.id)
       }
-      const payload = {
+      const editionPayload = {
         date: form.date,
         hero_description: form.hero_description.trim(),
         hero_summary: form.hero_summary.trim(),
         featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
         is_current: form.is_current,
       }
-      const { error } = await supabase.from("editions").update(payload).eq("id", editingEdition.id)
-      if (error) throw error
+      const { error: edError } = await supabase.from("editions").update(editionPayload).eq("id", editingEdition.id)
+      if (edError) throw edError
+
+      let themeId = editingThemeId
+      if (editingThemeId) {
+        await supabase
+          .from("themes")
+          .update({
+            name: form.edition_name.trim() || "Theme",
+            description: form.edition_write_up.trim() || null,
+          })
+          .eq("id", editingThemeId)
+      } else {
+        const slug = slugify(form.edition_name.trim() || "theme")
+        const { data: newTheme, error: thError } = await supabase
+          .from("themes")
+          .insert({
+            edition_id: editingEdition.id,
+            name: form.edition_name.trim() || "Theme",
+            slug,
+            description: form.edition_write_up.trim() || null,
+            sort_order: 0,
+          })
+          .select("id")
+          .single()
+        if (thError) throw thError
+        themeId = newTheme?.id ?? null
+      }
+      const categoryId = categories[0]?.id
+      const headline = form.edition_name.trim() || "Content"
+
+      if (editingPostId) {
+        await supabase.from("posts").update({ headline }).eq("id", editingPostId)
+        await supabase.from("post_insights").delete().eq("post_id", editingPostId)
+        const insights = [
+          { label: "What is it", description: contentForm.what_is_it.trim(), sort_order: 0 },
+          { label: "So what", description: contentForm.so_what.trim(), sort_order: 1 },
+          { label: "Now what", description: contentForm.now_what.trim(), sort_order: 2 },
+        ].filter((i) => i.description)
+        if (insights.length) {
+          await supabase.from("post_insights").insert(
+            insights.map((i) => ({ post_id: editingPostId, ...i }))
+          )
+        }
+        await supabase.from("media_items").delete().eq("post_id", editingPostId)
+        const mediaRows = contentForm.media_rows.filter((r) => r.url.trim())
+        if (mediaRows.length) {
+          await supabase.from("media_items").insert(
+            mediaRows.map((r, i) => ({
+              post_id: editingPostId,
+              type: "image",
+              url: r.url.trim(),
+              caption: r.caption.trim() || null,
+              sort_order: i,
+            }))
+          )
+        }
+      } else if (themeId && categoryId) {
+        const { data: postData, error: postError } = await supabase
+          .from("posts")
+          .insert({
+            edition_id: editingEdition.id,
+            theme_id: themeId,
+            category_id: categoryId,
+            headline,
+          })
+          .select("id")
+          .single()
+        if (postError) throw postError
+        const postId = postData?.id
+        if (postId) {
+          const insights = [
+            { label: "What is it", description: contentForm.what_is_it.trim(), sort_order: 0 },
+            { label: "So what", description: contentForm.so_what.trim(), sort_order: 1 },
+            { label: "Now what", description: contentForm.now_what.trim(), sort_order: 2 },
+          ].filter((i) => i.description)
+          if (insights.length) {
+            await supabase.from("post_insights").insert(insights.map((i) => ({ post_id: postId, ...i })))
+          }
+          const mediaRows = contentForm.media_rows.filter((r) => r.url.trim())
+          if (mediaRows.length) {
+            await supabase.from("media_items").insert(
+              mediaRows.map((r, i) => ({
+                post_id: postId,
+                type: "image",
+                url: r.url.trim(),
+                caption: r.caption.trim() || null,
+                sort_order: i,
+              }))
+            )
+          }
+        }
+      }
+
       closeModal()
       await fetchEditions()
     } catch (err) {
@@ -522,96 +662,228 @@ export default function AdminEditionsPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className={cn("bg-[#0a0a0a] border-[#222] text-gray-200", createStep === 3 ? "max-w-2xl" : "max-w-lg")}>
+        <DialogContent className={cn("bg-[#0a0a0a] border-[#222] text-gray-200", (createStep === 3 || editingEdition) ? "max-w-2xl" : "max-w-lg")}>
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingEdition
                 ? "Edit Edition"
                 : createStep === 1
                   ? "New Edition"
-                  : createStep === 2
-                    ? "Add theme"
-                    : "Add content"}
+                  : "Add content"}
             </DialogTitle>
           </DialogHeader>
 
           {editingEdition ? (
             <>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    className="bg-[#111] border-[#333]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hero_description">Hero Description</Label>
-                  <Textarea
-                    id="hero_description"
-                    value={form.hero_description}
-                    onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
-                    rows={4}
-                    className="bg-[#111] border-[#333] resize-y"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hero_summary">Hero Summary</Label>
-                  <Textarea
-                    id="hero_summary"
-                    value={form.hero_summary}
-                    onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
-                    placeholder="This week, users are…"
-                    rows={3}
-                    className="bg-[#111] border-[#333] resize-y"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="include_meme_edit"
-                    checked={form.include_meme}
-                    onCheckedChange={(checked) => setForm((f) => ({ ...f, include_meme: checked }))}
-                  />
-                  <Label htmlFor="include_meme_edit">Include featured meme</Label>
-                </div>
-                {form.include_meme && (
+              {editLoading ? (
+                <div className="py-12 text-center text-gray-400">Loading edition…</div>
+              ) : (
+                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
                   <div className="grid gap-2">
-                    <Label>Featured Meme URL</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={form.featured_meme_url}
-                        onChange={(e) => setForm((f) => ({ ...f, featured_meme_url: e.target.value }))}
-                        placeholder="https://…"
-                        className="bg-[#111] border-[#333] flex-1"
-                      />
-                      <label
-                        className={cn(
-                          "inline-flex items-center justify-center h-10 px-4 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
-                          uploading && "opacity-50 pointer-events-none"
-                        )}
-                      >
-                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                        {uploading ? "Uploading…" : "Upload"}
-                      </label>
-                    </div>
-                    {form.featured_meme_url && (
-                      <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
-                        <MediaImage src={form.featured_meme_url} alt="Featured meme" className="h-full w-full object-cover" />
-                      </div>
-                    )}
+                    <Label htmlFor="edit_date">Date</Label>
+                    <Input
+                      id="edit_date"
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                      className="bg-[#111] border-[#333]"
+                    />
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Switch id="is_current" checked={form.is_current} onCheckedChange={handleIsCurrentChange} />
-                  <Label htmlFor="is_current">Set as Current Edition</Label>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_edition_name">Edition name</Label>
+                    <Input
+                      id="edit_edition_name"
+                      value={form.edition_name}
+                      onChange={(e) => setForm((f) => ({ ...f, edition_name: e.target.value }))}
+                      placeholder="Theme name for this edition"
+                      className="bg-[#111] border-[#333]"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_edition_write_up">Write-up (optional)</Label>
+                    <Textarea
+                      id="edit_edition_write_up"
+                      value={form.edition_write_up}
+                      onChange={(e) => setForm((f) => ({ ...f, edition_write_up: e.target.value }))}
+                      placeholder="Theme description or copy…"
+                      rows={2}
+                      className="bg-[#111] border-[#333] resize-y"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_hero_description">Hero description</Label>
+                    <Textarea
+                      id="edit_hero_description"
+                      value={form.hero_description}
+                      onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
+                      rows={3}
+                      className="bg-[#111] border-[#333] resize-y"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit_hero_summary">Hero summary</Label>
+                    <Textarea
+                      id="edit_hero_summary"
+                      value={form.hero_summary}
+                      onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
+                      placeholder="This week, users are…"
+                      rows={2}
+                      className="bg-[#111] border-[#333] resize-y"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="include_meme_edit"
+                      checked={form.include_meme}
+                      onCheckedChange={(checked) => setForm((f) => ({ ...f, include_meme: checked }))}
+                    />
+                    <Label htmlFor="include_meme_edit">Include featured meme</Label>
+                  </div>
+                  {form.include_meme && (
+                    <div className="grid gap-2">
+                      <Label>Featured Meme URL</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={form.featured_meme_url}
+                          onChange={(e) => setForm((f) => ({ ...f, featured_meme_url: e.target.value }))}
+                          placeholder="https://…"
+                          className="bg-[#111] border-[#333] flex-1"
+                        />
+                        <label
+                          className={cn(
+                            "inline-flex items-center justify-center h-10 px-4 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors",
+                            uploading && "opacity-50 pointer-events-none"
+                          )}
+                        >
+                          <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                          {uploading ? "Uploading…" : "Upload"}
+                        </label>
+                      </div>
+                      {form.featured_meme_url && (
+                        <div className="mt-2 h-24 w-32 rounded border border-[#333] overflow-hidden bg-[#111]">
+                          <MediaImage src={form.featured_meme_url} alt="Featured meme" className="h-full w-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Switch id="is_current_edit" checked={form.is_current} onCheckedChange={handleIsCurrentChange} />
+                    <Label htmlFor="is_current_edit">Set as Current Edition</Label>
+                  </div>
+
+                  <div className="border-t border-[#333] pt-6 mt-2">
+                    <h3 className="text-sm font-medium text-gray-300 mb-4">Content</h3>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit_what_is_it">What is it</Label>
+                        <Textarea
+                          id="edit_what_is_it"
+                          value={contentForm.what_is_it}
+                          onChange={(e) => setContentForm((f) => ({ ...f, what_is_it: e.target.value }))}
+                          placeholder="Brief description…"
+                          rows={2}
+                          className="bg-[#111] border-[#333] resize-y"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit_so_what">So what</Label>
+                        <Textarea
+                          id="edit_so_what"
+                          value={contentForm.so_what}
+                          onChange={(e) => setContentForm((f) => ({ ...f, so_what: e.target.value }))}
+                          placeholder="Why it matters…"
+                          rows={2}
+                          className="bg-[#111] border-[#333] resize-y"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit_now_what">Now what</Label>
+                        <Textarea
+                          id="edit_now_what"
+                          value={contentForm.now_what}
+                          onChange={(e) => setContentForm((f) => ({ ...f, now_what: e.target.value }))}
+                          placeholder="Next steps or takeaway…"
+                          rows={2}
+                          className="bg-[#111] border-[#333] resize-y"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Media (link or upload + caption)</Label>
+                        {contentForm.media_rows.map((row, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <Input
+                              value={row.url}
+                              onChange={(e) =>
+                                setContentForm((f) => ({
+                                  ...f,
+                                  media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
+                                }))
+                              }
+                              placeholder="URL or use Upload"
+                              className="bg-[#111] border-[#333] flex-1"
+                            />
+                            <label
+                              className={cn(
+                                "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
+                                uploadingMediaRow === i && "opacity-50 pointer-events-none"
+                              )}
+                            >
+                              <input
+                                type="file"
+                                accept="image/*,video/*"
+                                className="hidden"
+                                onChange={(ev) => handleMediaRowUpload(ev, i)}
+                                disabled={uploadingMediaRow !== null}
+                              />
+                              {uploadingMediaRow === i ? "…" : "Upload"}
+                            </label>
+                            <Input
+                              value={row.caption}
+                              onChange={(e) =>
+                                setContentForm((f) => ({
+                                  ...f,
+                                  media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                                }))
+                              }
+                              placeholder="Caption"
+                              className="bg-[#111] border-[#333] w-28 shrink-0"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-red-400 shrink-0"
+                              onClick={() =>
+                                setContentForm((f) => ({
+                                  ...f,
+                                  media_rows: f.media_rows.filter((_, j) => j !== i).length
+                                    ? f.media_rows.filter((_, j) => j !== i)
+                                    : [{ url: "", caption: "" }],
+                                }))
+                              }
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-fit border-[#333] text-gray-400"
+                          onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "" }] }))}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add media
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
-                <Button onClick={handleSaveEdit} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
+                <Button onClick={handleSaveEdit} disabled={saving || editLoading} className="bg-dose-orange hover:bg-dose-orange/90">
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </DialogFooter>
@@ -627,6 +899,27 @@ export default function AdminEditionsPage() {
                     value={form.date}
                     onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                     className="bg-[#111] border-[#333]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edition_name">Edition name</Label>
+                  <Input
+                    id="edition_name"
+                    value={form.edition_name}
+                    onChange={(e) => setForm((f) => ({ ...f, edition_name: e.target.value }))}
+                    placeholder="This is the theme name for this edition"
+                    className="bg-[#111] border-[#333]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edition_write_up">Write-up (optional)</Label>
+                  <Textarea
+                    id="edition_write_up"
+                    value={form.edition_write_up}
+                    onChange={(e) => setForm((f) => ({ ...f, edition_write_up: e.target.value }))}
+                    placeholder="Theme description or copy…"
+                    rows={3}
+                    className="bg-[#111] border-[#333] resize-y"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -693,38 +986,6 @@ export default function AdminEditionsPage() {
               <DialogFooter>
                 <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
                 <Button onClick={handleSaveStep1} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
-                  {saving ? "Saving…" : "Save & continue"}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : createStep === 2 ? (
-            <>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="theme_name">Theme name</Label>
-                  <Input
-                    id="theme_name"
-                    value={themeForm.theme_name}
-                    onChange={(e) => setThemeForm((f) => ({ ...f, theme_name: e.target.value }))}
-                    placeholder="e.g. Audience & Culture"
-                    className="bg-[#111] border-[#333]"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="theme_write_up">Write-up</Label>
-                  <Textarea
-                    id="theme_write_up"
-                    value={themeForm.theme_write_up}
-                    onChange={(e) => setThemeForm((f) => ({ ...f, theme_write_up: e.target.value }))}
-                    placeholder="Theme description or copy…"
-                    rows={4}
-                    className="bg-[#111] border-[#333] resize-y"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={closeModal} className="border-[#333]">Cancel</Button>
-                <Button onClick={handleSaveStep2} disabled={saving} className="bg-dose-orange hover:bg-dose-orange/90">
                   {saving ? "Saving…" : "Save & continue"}
                 </Button>
               </DialogFooter>

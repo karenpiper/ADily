@@ -118,7 +118,7 @@ export async function getAllEditions(): Promise<Edition[]> {
   return data ?? []
 }
 
-// Fetches a single edition with its 3 themes and each theme's posts (support points, proof, content)
+// Fetches a single edition with its theme(s) and each theme's posts. (One theme per edition in the new flow.)
 export async function getEditionWithThemes(
   editionId: string
 ): Promise<EditionWithThemes | null> {

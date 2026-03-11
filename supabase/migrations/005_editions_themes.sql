@@ -1,7 +1,8 @@
--- Reorganize around editions: each edition has 3 themes; themes have support points / proof / posts / content.
+-- Reorganize around editions: themes have support points / proof / posts / content.
 -- Support points = post_insights, proof = media_items, posts/content = headline + articles (unchanged).
+-- App now uses one theme per edition (first theme by sort_order); new add-edition flow creates a single theme.
 
--- THEMES: 3 per edition
+-- THEMES: one per edition in the new flow (schema allows multiple per edition for legacy/backfill)
 create table themes (
   id uuid default gen_random_uuid() primary key,
   edition_id uuid references editions(id) on delete cascade not null,
