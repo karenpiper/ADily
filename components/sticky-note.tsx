@@ -2,11 +2,11 @@
 
 interface StickyNoteProps {
   date: string
-  heroDescription: string
-  heroSummary: string
+  headline: string
+  summary?: string | null
 }
 
-export function StickyNote({ date, heroDescription, heroSummary }: StickyNoteProps) {
+export function StickyNote({ date, headline, summary }: StickyNoteProps) {
   return (
     <div className="animate-float relative w-full max-w-[500px]">
       {/* Masking tape */}
@@ -31,15 +31,17 @@ export function StickyNote({ date, heroDescription, heroSummary }: StickyNotePro
           {date}
         </span>
 
-        {/* First paragraph */}
-        <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif mb-4 pr-16">
-          {heroDescription}
+        {/* Headline (theme name) */}
+        <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif font-bold pr-16">
+          {headline}
         </p>
 
-        {/* Second paragraph */}
-        <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif font-bold">
-          {heroSummary}
-        </p>
+        {/* Optional summary */}
+        {summary?.trim() && (
+          <p className="text-[15px] leading-relaxed text-dose-gray-dark font-serif mt-4 pr-16">
+            {summary.trim()}
+          </p>
+        )}
       </div>
     </div>
   )

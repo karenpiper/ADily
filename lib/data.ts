@@ -22,6 +22,24 @@ export async function getCurrentEdition(): Promise<Edition | null> {
   return data
 }
 
+// Fetches current edition and its theme name (for front page headline)
+export async function getCurrentEditionWithTheme(): Promise<{
+  edition: Edition | null
+  themeName: string | null
+}> {
+  const edition = await getCurrentEdition()
+  if (!edition) return { edition: null, themeName: null }
+  const supabase = await createClient()
+  const { data: themes } = await supabase
+    .from('themes')
+    .select('name')
+    .eq('edition_id', edition.id)
+    .order('sort_order', { ascending: true })
+    .limit(1)
+  const themeName = themes?.[0]?.name ?? null
+  return { edition, themeName }
+}
+
 // Fetches all posts for a given category slug, grouped by edition date (newest first).
 // Each post includes its insights and media_items, joined via Supabase's nested select.
 export async function getPostsByCategory(

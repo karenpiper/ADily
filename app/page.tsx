@@ -4,7 +4,7 @@ import { MainNav } from "@/components/main-nav"
 import { HomeTitle } from "@/components/home-title"
 import { StickyNote } from "@/components/sticky-note"
 import { HomeSidebar } from "@/components/home-sidebar"
-import { getCurrentEdition } from "@/lib/data"
+import { getCurrentEditionWithTheme } from "@/lib/data"
 
 function formatEditionDate(dateStr: string): string {
   const d = new Date(dateStr)
@@ -15,7 +15,7 @@ function formatEditionDate(dateStr: string): string {
 }
 
 export default async function HomePage() {
-  const edition = await getCurrentEdition()
+  const { edition, themeName } = await getCurrentEditionWithTheme()
 
   return (
     <div className="relative min-h-screen bg-dose-black">
@@ -41,13 +41,25 @@ export default async function HomePage() {
         <div className="flex-1 lg:w-[60%] flex flex-col justify-center px-6 md:px-12 lg:px-16 py-12 lg:py-0">
           <HomeTitle />
           <div className="mt-16 lg:mt-20">
-            {edition ? (
+            {edition && themeName ? (
               <>
                 <StickyNote
                   date={formatEditionDate(edition.date)}
-                  heroDescription={edition.hero_description}
-                  heroSummary={edition.hero_summary}
+                  headline={themeName}
+                  summary={edition.hero_description?.trim() || null}
                 />
+                <Link
+                  href={`/edition/${edition.id}`}
+                  className="inline-block mt-6 rounded-full px-5 py-2 text-sm font-medium bg-dose-orange text-white hover:bg-dose-orange/90 transition-colors"
+                >
+                  View this edition
+                </Link>
+              </>
+            ) : edition ? (
+              <>
+                <p className="text-dose-cream font-serif text-lg">
+                  No theme for current edition yet.
+                </p>
                 <Link
                   href={`/edition/${edition.id}`}
                   className="inline-block mt-6 rounded-full px-5 py-2 text-sm font-medium bg-dose-orange text-white hover:bg-dose-orange/90 transition-colors"

@@ -62,9 +62,7 @@ export function HomeSidebar({
             {index > 0 && <div className="h-px bg-dose-gray-dark" />}
             <Link
               href={item.href}
-              className={`block py-4 text-center font-serif italic text-foreground transition-colors duration-150 hover:text-dose-orange ${
-                item.sub ? "text-[24px] pl-4" : "text-[38px]"
-              }`}
+              className="block py-4 text-center font-serif italic text-foreground transition-colors duration-150 hover:text-dose-orange text-[24px]"
             >
               {item.label}
             </Link>

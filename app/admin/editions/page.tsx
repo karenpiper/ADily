@@ -51,7 +51,6 @@ function truncate(s: string, len: number): string {
 type FormState = {
   date: string
   edition_name: string
-  edition_write_up: string
   hero_description: string
   hero_summary: string
   featured_meme_url: string
@@ -62,7 +61,6 @@ type FormState = {
 const emptyForm: FormState = {
   date: "",
   edition_name: "",
-  edition_write_up: "",
   hero_description: DEFAULT_HERO_DESCRIPTION,
   hero_summary: "",
   featured_meme_url: "",
@@ -168,7 +166,6 @@ export default function AdminEditionsPage() {
     setForm({
       date: e.date,
       edition_name: "",
-      edition_write_up: "",
       hero_description: e.hero_description,
       hero_summary: e.hero_summary,
       featured_meme_url: e.featured_meme_url ?? "",
@@ -189,11 +186,7 @@ export default function AdminEditionsPage() {
         .limit(1)
       const theme = themes?.[0] ?? null
       if (theme) {
-        setForm((f) => ({
-          ...f,
-          edition_name: theme.name,
-          edition_write_up: theme.description ?? "",
-        }))
+        setForm((f) => ({ ...f, edition_name: theme.name }))
         setEditingThemeId(theme.id)
         const { data: posts } = await supabase
           .from("posts")
@@ -289,16 +282,16 @@ export default function AdminEditionsPage() {
   }
 
   const handleSaveStep1 = async () => {
-    if (!form.date || !form.edition_name.trim() || !form.hero_summary.trim() || !form.hero_description.trim()) {
-      alert("Date, Edition name, Hero Description, and Hero Summary are required.")
+    if (!form.date || !form.edition_name.trim()) {
+      alert("Date and Edition name are required.")
       return
     }
     setSaving(true)
     try {
       const editionPayload = {
         date: form.date,
-        hero_description: form.hero_description.trim(),
-        hero_summary: form.hero_summary.trim(),
+        hero_description: (form.hero_description || "").trim() || "",
+        hero_summary: form.edition_name.trim(),
         featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
         is_current: form.is_current,
       }
@@ -323,7 +316,7 @@ export default function AdminEditionsPage() {
           edition_id: editionId,
           name: themeName,
           slug,
-          description: form.edition_write_up.trim() || null,
+          description: null,
           sort_order: 0,
         })
         .select("id")
@@ -401,8 +394,8 @@ export default function AdminEditionsPage() {
   }
 
   const handleSaveEdit = async () => {
-    if (!editingEdition || !form.date || !form.hero_summary.trim() || !form.hero_description.trim()) {
-      alert("Date, Hero Description, and Hero Summary are required.")
+    if (!editingEdition || !form.date || !form.edition_name.trim()) {
+      alert("Date and Edition name are required.")
       return
     }
     setSaving(true)
@@ -412,8 +405,8 @@ export default function AdminEditionsPage() {
       }
       const editionPayload = {
         date: form.date,
-        hero_description: form.hero_description.trim(),
-        hero_summary: form.hero_summary.trim(),
+        hero_description: (form.hero_description || "").trim() || "",
+        hero_summary: form.edition_name.trim(),
         featured_meme_url: form.include_meme ? (form.featured_meme_url.trim() || null) : null,
         is_current: form.is_current,
       }
@@ -426,7 +419,7 @@ export default function AdminEditionsPage() {
           .from("themes")
           .update({
             name: form.edition_name.trim() || "Theme",
-            description: form.edition_write_up.trim() || null,
+            description: null,
           })
           .eq("id", editingThemeId)
       } else {
@@ -437,7 +430,7 @@ export default function AdminEditionsPage() {
             edition_id: editingEdition.id,
             name: form.edition_name.trim() || "Theme",
             slug,
-            description: form.edition_write_up.trim() || null,
+            description: null,
             sort_order: 0,
           })
           .select("id")
@@ -591,7 +584,7 @@ export default function AdminEditionsPage() {
             <TableHeader>
               <TableRow className="border-[#222] hover:bg-transparent">
                 <TableHead className="text-gray-400">Date</TableHead>
-                <TableHead className="text-gray-400">Hero Summary</TableHead>
+                <TableHead className="text-gray-400">Name</TableHead>
                 <TableHead className="text-gray-400 w-[100px]">Current</TableHead>
                 <TableHead className="text-gray-400 w-[180px] text-right">
                   Actions
@@ -700,34 +693,12 @@ export default function AdminEditionsPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="edit_edition_write_up">Write-up (optional)</Label>
-                    <Textarea
-                      id="edit_edition_write_up"
-                      value={form.edition_write_up}
-                      onChange={(e) => setForm((f) => ({ ...f, edition_write_up: e.target.value }))}
-                      placeholder="Theme description or copy…"
-                      rows={2}
-                      className="bg-[#111] border-[#333] resize-y"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit_hero_description">Hero description</Label>
+                    <Label htmlFor="edit_hero_description">Frontpage summary (optional)</Label>
                     <Textarea
                       id="edit_hero_description"
                       value={form.hero_description}
                       onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
                       rows={3}
-                      className="bg-[#111] border-[#333] resize-y"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit_hero_summary">Hero summary</Label>
-                    <Textarea
-                      id="edit_hero_summary"
-                      value={form.hero_summary}
-                      onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
-                      placeholder="This week, users are…"
-                      rows={2}
                       className="bg-[#111] border-[#333] resize-y"
                     />
                   </div>
@@ -912,34 +883,13 @@ export default function AdminEditionsPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edition_write_up">Write-up (optional)</Label>
-                  <Textarea
-                    id="edition_write_up"
-                    value={form.edition_write_up}
-                    onChange={(e) => setForm((f) => ({ ...f, edition_write_up: e.target.value }))}
-                    placeholder="Theme description or copy…"
-                    rows={3}
-                    className="bg-[#111] border-[#333] resize-y"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hero_description">Hero description</Label>
+                  <Label htmlFor="hero_description">Frontpage summary (optional)</Label>
                   <Textarea
                     id="hero_description"
                     value={form.hero_description}
                     onChange={(e) => setForm((f) => ({ ...f, hero_description: e.target.value }))}
+                    placeholder="Summary or description for the front page"
                     rows={4}
-                    className="bg-[#111] border-[#333] resize-y"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hero_summary">Hero summary</Label>
-                  <Textarea
-                    id="hero_summary"
-                    value={form.hero_summary}
-                    onChange={(e) => setForm((f) => ({ ...f, hero_summary: e.target.value }))}
-                    placeholder="This week, users are…"
-                    rows={3}
                     className="bg-[#111] border-[#333] resize-y"
                   />
                 </div>

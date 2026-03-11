@@ -54,32 +54,12 @@ export default async function EditionPage({
       currentEditionId={currentEdition?.id ?? null}
     >
       <div className="animate-fade-in">
-        {/* Edition hero */}
-        <div className="mb-16">
-          <p className="text-[16px] font-sans text-dose-orange mb-2">{dateLabel}</p>
-          <h1 className="text-[32px] font-serif leading-tight text-foreground mb-4 uppercase">
-            {edition.hero_summary}
-          </h1>
-          <div className="w-[60%] h-px bg-dose-orange mb-4" />
-          <p className="text-sm leading-relaxed text-dose-gray-light max-w-2xl">
-            {edition.hero_description}
-          </p>
-        </div>
-
+        <p className="text-[16px] font-sans text-dose-orange mb-8">{dateLabel}</p>
         {/* Single theme per edition */}
         {!theme ? (
           <p className="text-dose-gray-mid text-sm">No theme for this edition yet.</p>
         ) : (
           <section className="animate-fade-in">
-            <h2 className="text-[22px] font-serif text-dose-orange mb-2 uppercase">
-              {theme.name}
-            </h2>
-            {theme.description && (
-              <p className="text-dose-gray-light text-sm max-w-2xl mb-10">
-                {theme.description}
-              </p>
-            )}
-
             {theme.posts.length === 0 ? (
               <p className="text-dose-gray-mid text-sm">No content yet.</p>
             ) : (
