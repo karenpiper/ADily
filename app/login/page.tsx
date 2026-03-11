@@ -3,6 +3,7 @@
 import { Suspense, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useSearchParams } from "next/navigation"
+import { getAuthRedirectBase } from "@/lib/auth-redirect"
 
 function GoogleIcon() {
   return (
@@ -21,10 +22,12 @@ function LoginForm() {
 
   const handleSignIn = useCallback(async () => {
     const supabase = createClient()
+    const base = getAuthRedirectBase()
+    if (!base) return
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        redirectTo: `${base}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     })
   }, [next])

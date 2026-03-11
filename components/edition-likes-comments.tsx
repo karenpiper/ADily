@@ -34,8 +34,11 @@ export function EditionLikesComments({
     initial ?? { likeCount: 0, userLiked: false, comments: [] }
   )
   const [commentBody, setCommentBody] = useState("")
-  const [pending, startTransition] = useTransition()
+  const [commentPending, setCommentPending] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [likePending, startLikeTransition] = useTransition()
   const router = useRouter()
+  const pending = likePending || commentPending
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -45,7 +48,7 @@ export function EditionLikesComments({
 
   const handleLike = () => {
     if (!user) return
-    startTransition(async () => {
+    startLikeTransition(async () => {
       const result = await toggleEditionLike(editionId)
       if (result.ok) {
         setState((s) => ({
@@ -57,10 +60,12 @@ export function EditionLikesComments({
     })
   }
 
-  const handleSubmitComment = (e: React.FormEvent) => {
+  const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
+    setCommentError(null)
     if (!user || !commentBody.trim()) return
-    startTransition(async () => {
+    setCommentPending(true)
+    try {
       const result = await addEditionComment(editionId, commentBody.trim())
       if (result.ok) {
         setState((s) => ({
@@ -68,8 +73,14 @@ export function EditionLikesComments({
           comments: [...s.comments, result.comment],
         }))
         setCommentBody("")
+      } else {
+        setCommentError(result.error)
       }
-    })
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Failed to post comment")
+    } finally {
+      setCommentPending(false)
+    }
   }
 
   const handleDeleteComment = (commentId: string) => {
@@ -137,18 +148,24 @@ export function EditionLikesComments({
         <form onSubmit={handleSubmitComment} className="mb-6">
           <Textarea
             value={commentBody}
-            onChange={(e) => setCommentBody(e.target.value)}
+            onChange={(e) => {
+              setCommentBody(e.target.value)
+              setCommentError(null)
+            }}
             placeholder="Add a comment…"
             rows={2}
             className="bg-[#111] border-[#333] text-gray-200 placeholder:text-gray-500 mb-2"
-            disabled={pending}
+            disabled={commentPending}
           />
+          {commentError && (
+            <p className="text-amber-400 text-sm mb-2">{commentError}</p>
+          )}
           <Button
             type="submit"
-            disabled={pending || !commentBody.trim()}
+            disabled={commentPending || !commentBody.trim()}
             className="bg-dose-orange hover:bg-dose-orange/90"
           >
-            {pending ? "Posting…" : "Post comment"}
+            {commentPending ? "Posting…" : "Post comment"}
           </Button>
         </form>
 

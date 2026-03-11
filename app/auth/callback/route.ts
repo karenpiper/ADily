@@ -1,12 +1,15 @@
 // MANUAL SETUP REQUIRED:
 // 1. Go to Supabase Dashboard → Authentication → Providers → Google → Enable
 // 2. Create OAuth credentials at console.cloud.google.com:
-//    - Create a new OAuth 2.0 Client ID (Web application)
 //    - Authorized redirect URI: https://<your-supabase-project>.supabase.co/auth/v1/callback
-//    - Copy the Client ID and Client Secret into the Supabase Google provider settings
-// 3. In Supabase Dashboard → Authentication → URL Configuration:
-//    - Set Site URL to your production URL (or http://localhost:3000 for dev)
-//    - Add redirect URLs: http://localhost:3000/auth/callback, https://yourdomain.com/auth/callback
+//    - Copy Client ID and Secret into Supabase Google provider
+// 3. Supabase → Authentication → URL Configuration:
+//    - Site URL: your production URL (e.g. https://your-app.vercel.app)
+//    - Redirect URLs: add BOTH:
+//      http://localhost:3000/auth/callback
+//      https://your-app.vercel.app/auth/callback  (your real production URL)
+//    If the production URL is missing, OAuth may redirect to localhost and fail.
+// 4. In Vercel (or your host), set env: NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
+import { getAuthRedirectBase } from "@/lib/auth-redirect"
 
 function GoogleIcon() {
   return (
@@ -38,10 +39,12 @@ export default function AdminLoginPage() {
 
   const handleSignIn = useCallback(async () => {
     const supabase = createClient()
+    const base = getAuthRedirectBase()
+    if (!base) return
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${base}/auth/callback?next=/admin`,
       },
     })
   }, [])
