@@ -45,7 +45,7 @@ export function DateGroup({ date, headline, insights, images }: DateGroupProps) 
                 <span className="text-dose-orange mt-1 text-sm shrink-0">
                   {"●"}
                 </span>
-                <p className="text-sm leading-relaxed text-dose-gray-light">
+                <p className="text-sm leading-relaxed text-dose-gray-light whitespace-pre-wrap">
                   <span className="font-bold text-dose-orange">
                     {insight.label}:{" "}
                   </span>
