@@ -68,7 +68,7 @@ const emptyForm: FormState = {
   is_current: false,
 }
 
-type MediaRow = { url: string; caption: string }
+type MediaRow = { url: string; caption: string; external_link: string }
 type ContentFormState = {
   what_is_it: string
   so_what: string
@@ -79,7 +79,7 @@ const emptyContentForm: ContentFormState = {
   what_is_it: "",
   so_what: "",
   now_what: "",
-  media_rows: [{ url: "", caption: "" }],
+  media_rows: [{ url: "", caption: "", external_link: "" }],
 }
 
 function slugify(name: string): string {
@@ -190,14 +190,14 @@ export default function AdminEditionsPage() {
         setEditingThemeId(theme.id)
         const { data: posts } = await supabase
           .from("posts")
-          .select("id, post_insights(label, description, sort_order), media_items(url, caption, sort_order)")
+          .select("id, post_insights(label, description, sort_order), media_items(url, caption, sort_order, external_link)")
           .eq("theme_id", theme.id)
           .order("created_at", { ascending: false })
           .limit(1)
         const post = posts?.[0] as {
           id: string
           post_insights: { label: string; description: string; sort_order: number }[]
-          media_items: { url: string; caption: string | null; sort_order: number }[]
+          media_items: { url: string; caption: string | null; sort_order: number; external_link: string | null }[]
         } | undefined
         if (post) {
           setEditingPostId(post.id)
@@ -207,12 +207,12 @@ export default function AdminEditionsPage() {
           const nowWhat = insights.find((i) => i.label === "Now what")?.description ?? ""
           const mediaRows = (post.media_items ?? [])
             .sort((a, b) => a.sort_order - b.sort_order)
-            .map((m) => ({ url: m.url, caption: m.caption ?? "" }))
+            .map((m) => ({ url: m.url, caption: m.caption ?? "", external_link: m.external_link ?? "" }))
           setContentForm({
             what_is_it: whatIsIt,
             so_what: soWhat,
             now_what: nowWhat,
-            media_rows: mediaRows.length ? mediaRows : [{ url: "", caption: "" }],
+            media_rows: mediaRows.length ? mediaRows : [{ url: "", caption: "", external_link: "" }],
           })
         }
       }
@@ -378,6 +378,7 @@ export default function AdminEditionsPage() {
             type: "image",
             url: r.url.trim(),
             caption: r.caption.trim() || null,
+            external_link: r.external_link.trim() || null,
             sort_order: i,
           }))
         )
@@ -463,6 +464,7 @@ export default function AdminEditionsPage() {
               type: "image",
               url: r.url.trim(),
               caption: r.caption.trim() || null,
+              external_link: r.external_link.trim() || null,
               sort_order: i,
             }))
           )
@@ -497,6 +499,7 @@ export default function AdminEditionsPage() {
                 type: "image",
                 url: r.url.trim(),
                 caption: r.caption.trim() || null,
+                external_link: r.external_link.trim() || null,
                 sort_order: i,
               }))
             )
@@ -779,62 +782,75 @@ export default function AdminEditionsPage() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Media (link or upload + caption)</Label>
+                        <Label>Media: image URL or upload, optional caption and link out</Label>
                         {contentForm.media_rows.map((row, i) => (
-                          <div key={i} className="flex gap-2 items-start">
-                            <Input
-                              value={row.url}
-                              onChange={(e) =>
-                                setContentForm((f) => ({
-                                  ...f,
-                                  media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
-                                }))
-                              }
-                              placeholder="URL or use Upload"
-                              className="bg-[#111] border-[#333] flex-1"
-                            />
-                            <label
-                              className={cn(
-                                "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
-                                uploadingMediaRow === i && "opacity-50 pointer-events-none"
-                              )}
-                            >
-                              <input
-                                type="file"
-                                accept="image/*,video/*"
-                                className="hidden"
-                                onChange={(ev) => handleMediaRowUpload(ev, i)}
-                                disabled={uploadingMediaRow !== null}
+                          <div key={i} className="flex flex-col gap-2 p-2 rounded border border-[#222]">
+                            <div className="flex gap-2 items-center flex-wrap">
+                              <Input
+                                value={row.url}
+                                onChange={(e) =>
+                                  setContentForm((f) => ({
+                                    ...f,
+                                    media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
+                                  }))
+                                }
+                                placeholder="Image URL or use Upload below"
+                                className="bg-[#111] border-[#333] flex-1 min-w-[200px]"
                               />
-                              {uploadingMediaRow === i ? "…" : "Upload"}
-                            </label>
+                              <label
+                                className={cn(
+                                  "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
+                                  uploadingMediaRow === i && "opacity-50 pointer-events-none"
+                                )}
+                              >
+                                <input
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="hidden"
+                                  onChange={(ev) => handleMediaRowUpload(ev, i)}
+                                  disabled={uploadingMediaRow !== null}
+                                />
+                                {uploadingMediaRow === i ? "Uploading…" : "Upload"}
+                              </label>
+                              <Input
+                                value={row.caption}
+                                onChange={(e) =>
+                                  setContentForm((f) => ({
+                                    ...f,
+                                    media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                                  }))
+                                }
+                                placeholder="Caption"
+                                className="bg-[#111] border-[#333] w-28 shrink-0"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-400 hover:text-red-400 shrink-0"
+                                onClick={() =>
+                                  setContentForm((f) => ({
+                                    ...f,
+                                    media_rows: f.media_rows.filter((_, j) => j !== i).length
+                                      ? f.media_rows.filter((_, j) => j !== i)
+                                      : [{ url: "", caption: "", external_link: "" }],
+                                  }))
+                                }
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                             <Input
-                              value={row.caption}
+                              value={row.external_link}
                               onChange={(e) =>
                                 setContentForm((f) => ({
                                   ...f,
-                                  media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                                  media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, external_link: e.target.value } : r)),
                                 }))
                               }
-                              placeholder="Caption"
-                              className="bg-[#111] border-[#333] w-28 shrink-0"
+                              placeholder="Link out (optional) — URL when user clicks the image"
+                              className="bg-[#111] border-[#333] text-sm"
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-gray-400 hover:text-red-400 shrink-0"
-                              onClick={() =>
-                                setContentForm((f) => ({
-                                  ...f,
-                                  media_rows: f.media_rows.filter((_, j) => j !== i).length
-                                    ? f.media_rows.filter((_, j) => j !== i)
-                                    : [{ url: "", caption: "" }],
-                                }))
-                              }
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
                           </div>
                         ))}
                         <Button
@@ -842,7 +858,7 @@ export default function AdminEditionsPage() {
                           variant="outline"
                           size="sm"
                           className="w-fit border-[#333] text-gray-400"
-                          onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "" }] }))}
+                          onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "", external_link: "" }] }))}
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Add media
@@ -977,60 +993,73 @@ export default function AdminEditionsPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Media (link or upload + caption, one per line)</Label>
+                  <Label>Media: image URL or upload, optional caption and link out</Label>
                   {contentForm.media_rows.map((row, i) => (
-                    <div key={i} className="flex gap-2 items-start">
-                      <Input
-                        value={row.url}
-                        onChange={(e) =>
-                          setContentForm((f) => ({
-                            ...f,
-                            media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
-                          }))
-                        }
-                        placeholder="URL or use Upload"
-                        className="bg-[#111] border-[#333] flex-1"
-                      />
-                      <label
-                        className={cn(
-                          "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
-                          uploadingMediaRow === i && "opacity-50 pointer-events-none"
-                        )}
-                      >
-                        <input
-                          type="file"
-                          accept="image/*,video/*"
-                          className="hidden"
-                          onChange={(ev) => handleMediaRowUpload(ev, i)}
-                          disabled={uploadingMediaRow !== null}
+                    <div key={i} className="flex flex-col gap-2 p-2 rounded border border-[#222]">
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <Input
+                          value={row.url}
+                          onChange={(e) =>
+                            setContentForm((f) => ({
+                              ...f,
+                              media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
+                            }))
+                          }
+                          placeholder="Image URL or use Upload below"
+                          className="bg-[#111] border-[#333] flex-1 min-w-[200px]"
                         />
-                        {uploadingMediaRow === i ? "…" : "Upload"}
-                      </label>
+                        <label
+                          className={cn(
+                            "inline-flex items-center justify-center h-10 px-3 rounded-md border border-[#333] bg-[#111] text-sm font-medium cursor-pointer hover:bg-[#222] transition-colors shrink-0",
+                            uploadingMediaRow === i && "opacity-50 pointer-events-none"
+                          )}
+                        >
+                          <input
+                            type="file"
+                            accept="image/*,video/*"
+                            className="hidden"
+                            onChange={(ev) => handleMediaRowUpload(ev, i)}
+                            disabled={uploadingMediaRow !== null}
+                          />
+                          {uploadingMediaRow === i ? "Uploading…" : "Upload"}
+                        </label>
+                        <Input
+                          value={row.caption}
+                          onChange={(e) =>
+                            setContentForm((f) => ({
+                              ...f,
+                              media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                            }))
+                          }
+                          placeholder="Caption"
+                          className="bg-[#111] border-[#333] w-28 shrink-0"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-red-400 shrink-0"
+                          onClick={() =>
+                            setContentForm((f) => ({
+                              ...f,
+                              media_rows: f.media_rows.filter((_, j) => j !== i).length ? f.media_rows.filter((_, j) => j !== i) : [{ url: "", caption: "", external_link: "" }],
+                            }))
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <Input
-                        value={row.caption}
+                        value={row.external_link}
                         onChange={(e) =>
                           setContentForm((f) => ({
                             ...f,
-                            media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, caption: e.target.value } : r)),
+                            media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, external_link: e.target.value } : r)),
                           }))
                         }
-                        placeholder="Caption"
-                        className="bg-[#111] border-[#333] w-28 shrink-0"
+                        placeholder="Link out (optional) — URL when user clicks the image"
+                        className="bg-[#111] border-[#333] text-sm"
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-gray-400 hover:text-red-400 shrink-0"
-                        onClick={() =>
-                          setContentForm((f) => ({
-                            ...f,
-                            media_rows: f.media_rows.filter((_, j) => j !== i).length ? f.media_rows.filter((_, j) => j !== i) : [{ url: "", caption: "" }],
-                          }))
-                        }
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   ))}
                   <Button
@@ -1038,7 +1067,7 @@ export default function AdminEditionsPage() {
                     variant="outline"
                     size="sm"
                     className="w-fit border-[#333] text-gray-400"
-                    onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "" }] }))}
+                    onClick={() => setContentForm((f) => ({ ...f, media_rows: [...f.media_rows, { url: "", caption: "", external_link: "" }] }))}
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add media
