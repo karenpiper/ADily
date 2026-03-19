@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Pencil, Trash2, Star, Plus, X } from "lucide-react"
 import { MediaImage } from "@/components/media-image"
+import { getSocialEmbedUrl } from "@/lib/embed-urls"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_HERO_DESCRIPTION =
@@ -80,6 +81,40 @@ const emptyContentForm: ContentFormState = {
   so_what: "",
   now_what: "",
   media_rows: [{ url: "", caption: "", external_link: "" }],
+}
+
+function MediaRowPreview({ row }: { row: MediaRow }) {
+  const embedUrl = (row.external_link && getSocialEmbedUrl(row.external_link)) || (row.url && getSocialEmbedUrl(row.url)) || null
+  const isVideoUrl = /\.(mp4|webm|ogg|mov)(\?|$)/i.test(row.url || "")
+
+  if (embedUrl) {
+    return (
+      <div className="rounded overflow-hidden border border-[#333] bg-[#0a0a0a] aspect-video max-h-[220px] flex items-center justify-center">
+        <iframe
+          src={embedUrl}
+          title="Embed preview"
+          className="w-full h-full min-h-[200px] border-0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        />
+      </div>
+    )
+  }
+  if (row.url?.trim()) {
+    return (
+      <div className="rounded overflow-hidden border border-[#333] bg-[#0a0a0a] aspect-video max-h-[220px] flex items-center justify-center">
+        {isVideoUrl ? (
+          <video src={row.url} className="max-h-[220px] w-auto object-contain" muted playsInline preload="metadata" />
+        ) : (
+          <MediaImage src={row.url} alt="" className="max-h-[220px] w-auto object-contain" />
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="rounded border border-dashed border-[#333] bg-[#0a0a0a] aspect-video max-h-[180px] flex items-center justify-center text-gray-500 text-sm">
+      Paste URL, Instagram/TikTok link, or upload to see preview
+    </div>
+  )
 }
 
 function slugify(name: string): string {
@@ -794,7 +829,7 @@ export default function AdminEditionsPage() {
                                     media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
                                   }))
                                 }
-                                placeholder="Image URL or use Upload below"
+                                placeholder="Image URL, or Instagram/TikTok link (embeds), or Upload below"
                                 className="bg-[#111] border-[#333] flex-1 min-w-[200px]"
                               />
                               <label
@@ -851,6 +886,9 @@ export default function AdminEditionsPage() {
                               placeholder="Link out (optional) — URL when user clicks the image"
                               className="bg-[#111] border-[#333] text-sm"
                             />
+                            <div className="mt-1">
+                              <MediaRowPreview row={row} />
+                            </div>
                           </div>
                         ))}
                         <Button
@@ -1005,7 +1043,7 @@ export default function AdminEditionsPage() {
                               media_rows: f.media_rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)),
                             }))
                           }
-                          placeholder="Image URL or use Upload below"
+                          placeholder="Image URL, or Instagram/TikTok link (embeds), or Upload below"
                           className="bg-[#111] border-[#333] flex-1 min-w-[200px]"
                         />
                         <label
@@ -1060,6 +1098,9 @@ export default function AdminEditionsPage() {
                         placeholder="Link out (optional) — URL when user clicks the image"
                         className="bg-[#111] border-[#333] text-sm"
                       />
+                      <div className="mt-1">
+                        <MediaRowPreview row={row} />
+                      </div>
                     </div>
                   ))}
                   <Button

@@ -31,8 +31,15 @@ export function ImageGrid({ images }: { images: GridImage[] }) {
 function GridItem({ image, index }: { image: GridImage; index: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const embedUrl = image.externalLink ? getSocialEmbedUrl(image.externalLink) : null
-  const hasLink = !!image.externalLink?.trim()
+  // Embed from Link out (external) or from main Image URL when user pastes Instagram/TikTok
+  const embedUrl =
+    (image.externalLink && getSocialEmbedUrl(image.externalLink)) ||
+    (image.url && getSocialEmbedUrl(image.url)) ||
+    null
+  const embedSourceUrl = embedUrl
+    ? (image.externalLink && getSocialEmbedUrl(image.externalLink) ? image.externalLink : image.url) || null
+    : null
+  const hasLink = !!image.externalLink?.trim() || !!embedSourceUrl
 
   useEffect(() => {
     const el = ref.current
@@ -106,9 +113,9 @@ function GridItem({ image, index }: { image: GridImage; index: number }) {
       >
         {wrappedContent}
       </div>
-      {hasLink && embedUrl && (
+      {hasLink && embedUrl && embedSourceUrl && (
         <a
-          href={image.externalLink}
+          href={embedSourceUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="absolute bottom-2 right-2 px-3 py-1.5 rounded text-xs font-medium bg-black/70 text-white hover:bg-dose-orange transition-colors z-10"
